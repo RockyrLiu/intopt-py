@@ -10,7 +10,22 @@ plt.rcParams['axes.unicode_minus'] = False
 class ElitePSO:
     """精英初始化PSO"""
     def __init__(self, dim, n_runs=10, particles=30, iterations=50, objective_func=None,
-                 base_optimizer=None, verbose=True, level=1):
+                 base_optimizer=None, verbose=True, level=1, 
+                 lower_bound=-5.12, upper_bound=5.12, v_max=2):
+        """
+        参数:
+        dim: 搜索维度
+        n_runs: 独立运行次数
+        particles: 每次运行的粒子数
+        iterations: 每次运行的迭代次数
+        objective_func: 目标函数
+        base_optimizer: 基础优化器(用于多层结构)
+        verbose: 是否显示进度信息
+        level: 当前层级(用于多层结构)
+        lower_bound: 每个维度的下界(标量或数组)
+        upper_bound: 每个维度的上界(标量或数组)
+        v_max: 最大速度限制
+        """
         self.dim = dim
         self.n_runs = n_runs
         self.particles = particles
@@ -19,6 +34,21 @@ class ElitePSO:
         self.base_optimizer = base_optimizer
         self.verbose = verbose
         self.level = level
+        self.v_max = v_max
+        
+        # 处理边界参数
+        if np.isscalar(lower_bound):
+            self.lower_bound = np.full(dim, lower_bound)
+        else:
+            assert len(lower_bound) == dim, "下界数组长度必须与维度匹配"
+            self.lower_bound = np.array(lower_bound)
+            
+        if np.isscalar(upper_bound):
+            self.upper_bound = np.full(dim, upper_bound)
+        else:
+            assert len(upper_bound) == dim, "上界数组长度必须与维度匹配"
+            self.upper_bound = np.array(upper_bound)
+            
         self.gbest = None
         self.fit = float('inf')
         self.fitness_history = []
@@ -51,7 +81,8 @@ class ElitePSO:
                 best_fitness = optimizer.fit
             else:
                 pso = PSO(pN=self.particles, dim=self.dim, max_iter=self.iterations, 
-                         lower_bound=-5, upper_bound=5, v_max=2, objective_func=self.objective_func,
+                         lower_bound=self.lower_bound, upper_bound=self.upper_bound, 
+                         v_max=self.v_max, objective_func=self.objective_func,
                          verbose=False)
                 pso.run()
                 best_position = pso.gbest[0]
@@ -89,9 +120,9 @@ class ElitePSO:
             pN=self.n_runs,
             dim=self.dim,
             max_iter=self.iterations,
-            lower_bound=-5,
-            upper_bound=5,
-            v_max=2,
+            lower_bound=self.lower_bound,
+            upper_bound=self.upper_bound,
+            v_max=self.v_max,
             initial_positions=best_positions,
             objective_func=self.objective_func,
             verbose=self.verbose and self.level == 1
@@ -116,7 +147,8 @@ class ElitePSO:
             raise ValueError("未提供目标函数 (objective_func 不能为 None)")
         return self.objective_func(X)
 
-def multiLayerPSO(dim, n_runs, particles, iterations, layers, objective_func):
+def multiLayerPSO(dim, n_runs, particles, iterations, layers, objective_func,
+                 lower_bound=-5.12, upper_bound=5.12, v_max=2):
     """多层PSO"""
     # 采用递归构建多层结构
     print("\n" + "="*50)
@@ -135,7 +167,10 @@ def multiLayerPSO(dim, n_runs, particles, iterations, layers, objective_func):
                 iterations=iterations,
                 objective_func=objective_func,
                 verbose=is_top_layer,
-                level=layer
+                level=layer,
+                lower_bound=lower_bound,
+                upper_bound=upper_bound,
+                v_max=v_max
             )
         else:
             layer_optimizer = ElitePSO(
@@ -146,7 +181,10 @@ def multiLayerPSO(dim, n_runs, particles, iterations, layers, objective_func):
                 base_optimizer=current_layer,
                 objective_func=objective_func,
                 verbose=is_top_layer,
-                level=layer
+                level=layer,
+                lower_bound=lower_bound,
+                upper_bound=upper_bound,
+                v_max=v_max
             )
         current_layer = layer_optimizer
     
@@ -154,7 +192,6 @@ def multiLayerPSO(dim, n_runs, particles, iterations, layers, objective_func):
     elite_history = top_layer.run()
 
     return elite_history, top_layer
-
 
 def plot_comparison(original_history, elite_history):
     plt.figure(figsize=(12, 6))
@@ -178,19 +215,40 @@ def plot_comparison(original_history, elite_history):
 
 if __name__ == "__main__":
     # 参数设置
-    dim = 10  # 根据自定义函数修改维度, 并修改类中对应的范围
+    dim = 3
     n_runs = 30  # 独立运行次数，同时也是高层粒子数
     particles = 30 # 仅用于底层粒子数
-    iterations = 100
+    iterations = 50
     layers = 3
     
-    elite_history, top_layer = multiLayerPSO(dim, n_runs, particles, iterations, layers,
-                                             fitness2)
+    # 定义每个维度的不同边界, 如果边界一致可使用标量
+    lower_bounds = [-5, -5.12, -10]  # 每个维度的下界
+    upper_bounds = [5, 5.12, 10]     # 每个维度的上界
+    
+    # 运行多层精英PSO
+    elite_history, top_layer = multiLayerPSO(
+        dim=dim, 
+        n_runs=n_runs, 
+        particles=particles, 
+        iterations=iterations, 
+        layers=layers,
+        objective_func=fitness2,
+        lower_bound=lower_bounds,
+        upper_bound=upper_bounds
+    )
     
     # 运行标准PSO对比
     print("运行标准PSO作为基准对比...")
-    standard_pso = PSO(pN=particles, dim=dim, max_iter=iterations, lower_bound=-5, 
-                       upper_bound=5, v_max=2, objective_func=fitness2, verbose=False)
+    standard_pso = PSO(
+        pN=particles, 
+        dim=dim, 
+        max_iter=iterations, 
+        lower_bound=lower_bounds,
+        upper_bound=upper_bounds, 
+        v_max=2, 
+        objective_func=fitness2, 
+        verbose=False
+    )
     standard_history = standard_pso.run()
     
     # 结果对比

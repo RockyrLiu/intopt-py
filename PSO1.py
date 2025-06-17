@@ -16,8 +16,20 @@ class PSO:
         self.pN = pN  # 粒子数
         self.dim = dim  # 搜索维度
         self.max_iter = max_iter  # 迭代次数
-        self.lower_bound = lower_bound  # 位置下界
-        self.upper_bound = upper_bound  # 位置上界
+        
+        # 处理边界参数 - 允许标量或数组形式的输入
+        if np.isscalar(lower_bound):
+            self.lower_bound = np.full(dim, lower_bound)
+        else:
+            assert len(lower_bound) == dim, "下界数组长度必须与维度匹配"
+            self.lower_bound = np.array(lower_bound)
+            
+        if np.isscalar(upper_bound):
+            self.upper_bound = np.full(dim, upper_bound)
+        else:
+            assert len(upper_bound) == dim, "上界数组长度必须与维度匹配"
+            self.upper_bound = np.array(upper_bound)
+            
         self.v_max = v_max  # 最大速度限制
         if objective_func is None:
             raise ValueError("必须提供目标函数 (objective_func 不能为 None)")
@@ -29,7 +41,10 @@ class PSO:
             assert initial_positions.shape == (pN, dim), "初始位置形状错误"
             self.X = initial_positions.copy()
         else:
-            self.X = np.random.uniform(self.lower_bound, self.upper_bound, (self.pN, self.dim))
+            # 为每个维度生成在各自范围内的随机数
+            self.X = np.zeros((self.pN, self.dim))
+            for d in range(self.dim):
+                self.X[:, d] = np.random.uniform(self.lower_bound[d], self.upper_bound[d], self.pN)
         
         self.V = np.random.uniform(-self.v_max, self.v_max, (self.pN, self.dim))
         
@@ -40,8 +55,11 @@ class PSO:
         self.fit = np.min(self.p_fit)  # 全局最佳适应度值
         
     def clamp_position(self, position):
-        """位置钳制，确保粒子在搜索空间内"""
-        return np.clip(position, self.lower_bound, self.upper_bound)
+        """位置钳制，确保粒子在搜索空间内，处理每个维度的不同边界"""
+        clamped = position.copy()
+        for d in range(self.dim):
+            clamped[:, d] = np.clip(position[:, d], self.lower_bound[d], self.upper_bound[d])
+        return clamped
     
     def clamp_velocity(self, velocity):
         """速度钳制，防止粒子移动过快"""
@@ -110,7 +128,7 @@ def fitness1(X):
 def fitness2(X):
     """Rastrigin测试函数"""
     A = 10
-    return A *  X.shape[1] + np.sum(X**2 - A * np.cos(2 * np.pi * X), axis=1)
+    return A * X.shape[1] + np.sum(X**2 - A * np.cos(2 * np.pi * X), axis=1)
 
 def plot_pso(fitness_history):
     """可视化优化过程"""
@@ -125,10 +143,16 @@ def plot_pso(fitness_history):
     plt.show()
 
 if __name__ == "__main__":
-    # 创建并运行PSO优化器
+    # 示例用法 - 不同维度有不同的取值范围
     dim = 3  # 测试函数维度
-
-    pso = PSO(pN=30, dim=dim, max_iter=50, lower_bound=-5, upper_bound=5, v_max=2, objective_func=fitness2)
+    
+    # 定义每个维度的不同边界
+    lower_bounds = [-5, -5.12, -10]  # 每个维度的下界
+    upper_bounds = [5, 5.12, 10]     # 每个维度的上界
+    
+    pso = PSO(pN=30, dim=dim, max_iter=50, 
+              lower_bound=lower_bounds, upper_bound=upper_bounds, 
+              v_max=2, objective_func=fitness2)
     fitness_history = pso.run()
     
     # 输出最终结果

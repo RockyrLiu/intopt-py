@@ -25,11 +25,24 @@ class CPSO(PSO):
     
     def chaos_initialization(self, pN, dim, lb, ub):
         """使用Logistic混沌映射生成初始种群"""
+        # 处理边界参数 - 允许标量或数组形式的输入
+        if np.isscalar(lb):
+            lb = np.full(dim, lb)
+        else:
+            assert len(lb) == dim, "下界数组长度必须与维度匹配"
+            lb = np.array(lb)
+            
+        if np.isscalar(ub):
+            ub = np.full(dim, ub)
+        else:
+            assert len(ub) == dim, "上界数组长度必须与维度匹配"
+            ub = np.array(ub)
+        
         X = np.zeros((pN, dim))
         for i in range(pN):
             # 生成混沌序列
             chaos_seq = self.generate_chaos_sequence(dim)
-            # 映射到搜索空间
+            # 映射到搜索空间 - 每个维度使用自己的范围
             X[i] = lb + chaos_seq * (ub - lb)
         return X
     
@@ -150,7 +163,10 @@ def plot_pso(fitness_history):
 if __name__ == "__main__":
     # 测试CPSO
     dim = 3
-    cpso = CPSO(pN=30, dim=dim, max_iter=50, lower_bound=-5, upper_bound=5, 
+    # 定义每个维度的不同边界
+    lower_bounds = [-5, -5.12, -10]  # 每个维度的下界
+    upper_bounds = [5, 5.12, 10]     # 每个维度的上界
+    cpso = CPSO(pN=30, dim=dim, max_iter=50, lower_bound=lower_bounds, upper_bound=upper_bounds, 
                 v_max=2, objective_func=fitness2, chaos_reset_ratio=0.3)
     fitness_history = cpso.run()
     
