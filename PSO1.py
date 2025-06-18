@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from test_function import Rastrigin
 
 plt.rcParams['font.sans-serif'] = ['SimHei']  # 设置字体为黑体
 plt.rcParams['axes.unicode_minus'] = False  # 正确显示负号
@@ -119,17 +120,6 @@ class PSO:
         """运行优化算法"""
         return self.iterator()
 
-def fitness1(X):
-    """目标函数"""
-    x1 = X[:, 0]  # 第一个维度
-    x2 = X[:, 1]  # 第二个维度
-    return 3 * x1**2 - 2.1 * x1**4 + (x1**6) / 3 + x1 * x2 - 3 * x2**2 + 3 * x2**4
-
-def fitness2(X):
-    """Rastrigin测试函数"""
-    A = 10
-    return A * X.shape[1] + np.sum(X**2 - A * np.cos(2 * np.pi * X), axis=1)
-
 def plot_pso(fitness_history):
     """可视化优化过程"""
     plt.figure(figsize=(10, 6))
@@ -152,7 +142,7 @@ if __name__ == "__main__":
     
     pso = PSO(pN=30, dim=dim, max_iter=50, 
               lower_bound=lower_bounds, upper_bound=upper_bounds, 
-              v_max=2, objective_func=fitness2)
+              v_max=2, objective_func=Rastrigin)
     fitness_history = pso.run()
     
     # 输出最终结果

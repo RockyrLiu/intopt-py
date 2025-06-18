@@ -1,11 +1,9 @@
 # 本代码参考秦喜文《数学建模（Python）版》，147-158
 import math 
+import numpy as np
 from random import uniform, random
 import matplotlib.pyplot as plt
-
-def func(x1,x2):
-    res = 3 * x1**2 - 2.1 * x1**4 + (x1**6) / 3 + x1 * x2 - 3 * x2**2 + 3 * x2**4
-    return res
+from test_function import func1
 
 class SA:
     def __init__(self, func, iter=100, T0=100, Tf=0.01, alpha=0.99):
@@ -71,6 +69,10 @@ class SA:
 
 
 if __name__ == "__main__":
+    def func(x1, x2):
+        """将func1适配为接受x1,x2参数的函数"""
+        return func1(np.array([[x1, x2]]))[0]
+
     sa = SA(func)
     sa.run()
 

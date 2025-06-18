@@ -2,7 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from copy import deepcopy
-from PSO1 import PSO, fitness2
+from PSO1 import PSO
+from test_function import Rastrigin
 
 plt.rcParams['font.sans-serif'] = ['SimHei']
 plt.rcParams['axes.unicode_minus'] = False
@@ -232,7 +233,7 @@ if __name__ == "__main__":
         particles=particles, 
         iterations=iterations, 
         layers=layers,
-        objective_func=fitness2,
+        objective_func=Rastrigin,
         lower_bound=lower_bounds,
         upper_bound=upper_bounds
     )
@@ -246,7 +247,7 @@ if __name__ == "__main__":
         lower_bound=lower_bounds,
         upper_bound=upper_bounds, 
         v_max=2, 
-        objective_func=fitness2, 
+        objective_func=Rastrigin, 
         verbose=False
     )
     standard_history = standard_pso.run()

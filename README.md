@@ -76,6 +76,7 @@ P_{m1}, & \text{if } f < f_{\text{avg}}
 ## 粒子群优化算法，Particle Swarm Optimization
 ### 基本理论
 - 秦喜文《数学建模》，172-184
+
 ### 实例
 1. PSO1.py: minimize $f(x)=3x_1^2-2.1x_1^4+\frac{x_1^6}{3}+x_1x_2-3x_2^2+3x_2^4,\ |x_i|\leq 5$
 2. ElitePSO.py: **精英初始化PSO**、**多层PSO**
@@ -90,8 +91,15 @@ P_{m1}, & \text{if } f < f_{\text{avg}}
 ## 蚁群算法
 
 
-## 差分进化算法
+## 差分进化算法，Differential Evolution
+### 基本理论
+- 包子阳《智能优化算法及其MATLAB实例》，35-56
 
+### 实例
+1. DE.py: 基本差分进化算法、自适应差分进化算法、离散差分进化算法
+
+### 改进
+1. 将被变异变量由“random”改为“best”等、改变差向量的个数、使用其他交叉操作如指数交叉等
 
 ## 免疫算法
 

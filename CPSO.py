@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from PSO1 import PSO 
+from test_function import Rastrigin
 
 plt.rcParams['font.sans-serif'] = ['SimHei']  # 设置字体为黑体
 plt.rcParams['axes.unicode_minus'] = False  # 正确显示负号
@@ -139,16 +140,6 @@ class CPSO(PSO):
 
         return fitness_history
 
-# 测试函数保持不变
-def fitness1(X):
-    x1 = X[:, 0]
-    x2 = X[:, 1]
-    return 3 * x1**2 - 2.1 * x1**4 + (x1**6) / 3 + x1 * x2 - 3 * x2**2 + 3 * x2**4
-
-def fitness2(X):
-    A = 10
-    return A * X.shape[1] + np.sum(X**2 - A * np.cos(2 * np.pi * X), axis=1)
-
 def plot_pso(fitness_history):
     plt.figure(figsize=(10, 6))
     plt.title("CPSO优化过程 - 适应度变化", fontsize=14)
@@ -167,7 +158,7 @@ if __name__ == "__main__":
     lower_bounds = [-5, -5.12, -10]  # 每个维度的下界
     upper_bounds = [5, 5.12, 10]     # 每个维度的上界
     cpso = CPSO(pN=30, dim=dim, max_iter=50, lower_bound=lower_bounds, upper_bound=upper_bounds, 
-                v_max=2, objective_func=fitness2, chaos_reset_ratio=0.3)
+                v_max=2, objective_func=Rastrigin, chaos_reset_ratio=0.3)
     fitness_history = cpso.run()
     
     print("\n优化结果:")
