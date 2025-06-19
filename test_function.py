@@ -1,3 +1,4 @@
+import math
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -114,4 +115,73 @@ class TSPProblem1:
         plt.xlabel('X坐标')
         plt.ylabel('Y坐标')
         plt.grid(True)
+        plt.show()
+
+class TSPProblem2:
+    """TSP2问题封装（最终修正版）"""
+    def __init__(self, data_file="data\dsp2_data.txt"):
+        self.start_point = np.array([70, 40])  # 明确硬编码起点
+        self.load_data(data_file)
+        self.calc_distance_matrix()
+        self.N = len(self.xy)  # 城市数（不包括起点）
+    
+    def load_data(self, data_file):
+        sj0 = np.loadtxt(data_file)
+        x = sj0[:, 0:8:2].flatten()
+        y = sj0[:, 1:8:2].flatten()
+        self.destinations = np.column_stack((x, y))  # 仅存储目的地
+        self.xy = np.vstack((self.start_point, self.destinations))  # 起点+目的地
+        self.sj = self.xy * np.pi / 180  # 转为弧度
+    
+    def calc_distance_matrix(self):
+        n = len(self.sj)
+        self.d = np.zeros((n, n))
+        # 使用Haversine公式
+        for i in range(n):
+            for j in range(i+1, n):
+                lat1, lon1 = self.sj[i, 1], self.sj[i, 0]
+                lat2, lon2 = self.sj[j, 1], self.sj[j, 0]
+                dlon = lon2 - lon1
+                dlat = lat2 - lat1
+                a = np.sin(dlat/2)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon/2)**2
+                c = 2 * np.arcsin(np.sqrt(a))
+                self.d[i, j] = 6370 * c
+                self.d[j, i] = self.d[i, j]
+    
+    def calculate_path_length(self, path):
+        """计算闭环路径长度（明确包含返回起点的距离）"""
+        length = 0
+        n = len(path)
+        # 确保路径从起点(索引0)开始
+        for i in range(n):
+            length += self.d[path[i], path[(i+1) % n]]
+        return length
+    
+    def plot_solution(self, path, length):
+        """绘制路径图（明确标注起点）"""
+        # 确保路径闭环
+        closed_path = path + [path[0]]
+        xx = self.xy[closed_path, 0]
+        yy = self.xy[closed_path, 1]
+        
+        plt.figure(figsize=(12, 8))
+        # 绘制所有目的地
+        plt.scatter(self.destinations[:, 0], self.destinations[:, 1], 
+                   c='blue', s=30, label='目的地')
+        # 绘制路径线
+        plt.plot(xx, yy, 'g-', linewidth=1, alpha=0.7)
+        # 明确标注起点
+        plt.scatter([70], [40], c='red', s=100, 
+                   marker='*', label='起点 (70,40)')
+        
+        # 添加编号标注
+        for i, (x, y) in enumerate(zip(xx[:-1], yy[:-1])):
+            if i == 0: continue  # 起点已特殊标注
+            plt.text(x, y, str(i), color='black', fontsize=8)
+        
+        plt.title(f'TSP优化路径 (总长度: {length:.2f}km)')
+        plt.xlabel('经度')
+        plt.ylabel('纬度')
+        plt.legend(loc='upper right')
+        plt.grid(True, linestyle='--', alpha=0.5)
         plt.show()
