@@ -1,248 +1,305 @@
-# 本代码参考司守奎《数学建模算法与应用》，375-376
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+from test_function import Rastrigin
 
 plt.rcParams['font.sans-serif'] = ['SimHei']  # 设置字体为黑体
 plt.rcParams['axes.unicode_minus'] = False  # 正确显示负号
 
-class GA:
-    def __init__(self, population_size=50, generations=100, crossover_rate=0.8, mutation_rate=0.1):
+class BaseGA:
+    """遗传算法基类"""
+    def __init__(self, obj_func, dim, pop_size=50, generations=100, 
+                 crossover_rate=0.8, mutation_rate=0.1, elitism_ratio=0.1, 
+                 verbose=True):
         """
-        遗传算法类
-        
         参数:
-        population_size: 种群规模(w=50)
-        generations: 进化代数(g=100)
+        obj_func: 目标函数
+        dim: 变量维度
+        pop_size: 种群大小
+        generations: 进化代数
         crossover_rate: 交叉概率
-        mutation_rate: 变异概率(0.1)
+        mutation_rate: 变异概率
+        elitism_ratio: 精英保留比例
+        verbose: 是否显示进度条
         """
-        self.pop_size = population_size
+        self.obj_func = obj_func
+        self.dim = dim
+        self.pop_size = pop_size
         self.generations = generations
         self.crossover_rate = crossover_rate
         self.mutation_rate = mutation_rate
+        self.elitism_ratio = elitism_ratio
+        self.elite_size = max(1, int(elitism_ratio * pop_size))
+        self.verbose = verbose
         self.history = {'best_fitness': [], 'avg_fitness': []}
     
-    def initialize_population(self, tsp):
+    def init_population(self):
         """初始化种群"""
-        population = np.zeros((self.pop_size, tsp.num_cities))
-        
-        for k in range(self.pop_size):
-            # 产生初始解
-            c = np.random.permutation(tsp.num_cities-2) + 1  # 1-100的排列
-            c1 = np.concatenate(([0], c, [tsp.num_cities-1]))  # 加入起点和终点
-            
-            # 改良圈算法
-            flag = True
-            while flag:
-                flag = False
-                for m in range(tsp.num_cities-2):
-                    for n in range(m+2, tsp.num_cities-1):
-                        if (tsp.d[c1[m], c1[n]] + tsp.d[c1[m+1], c1[n+1]] < 
-                            tsp.d[c1[m], c1[m+1]] + tsp.d[c1[n], c1[n+1]]):
-                            c1[m+1:n+1] = c1[n:m:-1]  # 反转中间部分
-                            flag = True
-                if not flag:
-                    population[k, c1] = np.arange(tsp.num_cities)  # 记录解
-                    break
-        
-        return population / (tsp.num_cities-1)  # 转换为[0,1]区间的编码
+        raise NotImplementedError("子类必须实现initialize_population方法")
     
     def crossover(self, parent1, parent2):
         """交叉操作"""
-        if np.random.rand() > self.crossover_rate:
-            return parent1.copy(), parent2.copy()
-            
-        F = 2 + np.floor((len(parent1)-2) * np.random.rand()).astype(int)
-        child1 = parent1.copy()
-        child2 = parent2.copy()
-        
-        # 交换部分基因
-        temp = child1[F:].copy()
-        child1[F:] = child2[F:]
-        child2[F:] = temp
-        
-        return child1, child2
+        raise NotImplementedError("子类必须实现crossover方法")
     
     def mutate(self, individual):
         """变异操作"""
-        if np.random.rand() > self.mutation_rate:
-            return individual.copy()
-            
-        # 产生3个不同的变异位置    
-        bw = np.sort(np.random.choice(len(individual)-2, 3, replace=False) + 2)
-        # 交换片段位置
-        mutated = np.concatenate((
-            individual[:bw[0]], 
-            individual[bw[1]:bw[2]], 
-            individual[bw[0]:bw[1]], 
-            individual[bw[2]:]
-        ))
-        
-        return mutated
+        raise NotImplementedError("子类必须实现mutate方法")
+    
+    def decode_individual(self, individual):
+        """解码个体"""
+        return individual  # 默认不解码
+    
+    def check_bounds(self, individual):
+        """
+        检查个体是否在可行域内
+        对于连续问题，确保变量在上下界内
+        对于TSP问题，确保路径是有效排列
+        """
+        return individual  # 默认不处理
     
     def select(self, population, fitness):
-        """
-        选择操作(精英保留策略)
-        """
-        # 按适应度排序(越小越好)
-        indices = np.argsort(fitness)[:self.pop_size]
-        return population[indices]
-    
-    def solve(self, tsp):
-        """求解TSP问题"""
-        # 初始化种群
-        population = self.initialize_population(tsp)
+        """锦标赛选择"""
+        selected = []
+        tournament_size = 3
         
-        # 主循环
-        best_individual = None
-        best_fitness = float('inf')
+        for _ in range(self.pop_size):
+            candidates = np.random.choice(len(population), tournament_size, replace=False)
+            best_index = candidates[np.argmin(fitness[candidates])]
+            selected.append(population[best_index])
         
-        with tqdm(range(self.generations), desc="进化进度", unit="gen") as pbar:
-            for gen in pbar:
-                # 计算适应度
-                decoded_pop = self.decode_population(population, tsp)
-                fitness = np.array([tsp.calculate_path_length(ind) for ind in decoded_pop])
-                
-                # 更新历史记录
-                current_best = fitness.min()
-                current_avg = fitness.mean()
-                self.history['best_fitness'].append(current_best)
-                self.history['avg_fitness'].append(current_avg)
-                
-                # 更新最优个体
-                if current_best < best_fitness:
-                    best_fitness = current_best
-                    best_idx = fitness.argmin()
-                    best_individual = population[best_idx]
-                
-                # 选择优质父代产生后代(Selection)
-                selected = self.select(population, fitness)
-                
-                # 交叉
-                offspring = []
-                # 随机配对
-                c = np.random.permutation(self.pop_size)
-                for i in range(0, self.pop_size, 2):
-                    if i+1 >= self.pop_size:
-                        break
-                    child1, child2 = self.crossover(selected[c[i]], selected[c[i+1]])
-                    offspring.extend([child1, child2])
-                
-                # 变异
-                mutated = []
-                by = np.where(np.random.rand(self.pop_size) < self.mutation_rate)[0]
-                for i in range(self.pop_size):
-                    if i in by:
-                        mutated.append(self.mutate(offspring[i]))
-                    else:
-                        mutated.append(offspring[i])
-                
-                # 新一代种群(合并父代和子代)
-                G = np.vstack((population, np.array(mutated)))
-                decoded_G = self.decode_population(G, tsp)
-                fitness_G = np.array([tsp.calculate_path_length(ind) for ind in decoded_G])
-                
-                # 精英保留（Elitism）
-                indices = np.argsort(fitness_G)[:self.pop_size]
-                population = G[indices]
-                
-                # 更新进度条
-                pbar.set_postfix({
-                    "最优解": f"{best_fitness:.2f}",
-                    "平均解": f"{current_avg:.2f}",
-                    "当前最优": f"{current_best:.2f}"
-                })
+        return np.array(selected)
+    
+    def standard_iterator(self):
+        """标准遗传算法"""
+        population = self.init_population()
+        fitness = np.array([self.obj_func(ind) for ind in population])
         
-        # 解码最优个体
-        best_path = self.decode_individual(best_individual, tsp)
-        return best_path, best_fitness
+        best_fitness = np.min(fitness)
+        best_individual = population[np.argmin(fitness)]
+        self.history['best_fitness'].append(best_fitness)
+        self.history['avg_fitness'].append(np.mean(fitness))
+        
+        if self.verbose:
+            pbar = tqdm(range(self.generations), desc="标准GA进化进度")
+        
+        for gen in range(self.generations):
+            # 选择
+            population = self.select(population, fitness)
+            
+            # 交叉
+            new_population = []
+            np.random.shuffle(population)
+            for i in range(0, self.pop_size, 2):
+                if i+1 >= self.pop_size:
+                    new_population.append(self.check_bounds(population[i]))
+                    break
+                
+                parent1, parent2 = population[i], population[i+1]
+                if np.random.rand() < self.crossover_rate:
+                    child1, child2 = self.crossover(parent1, parent2)
+                    # 边界检查
+                    child1 = self.check_bounds(child1)
+                    child2 = self.check_bounds(child2)
+                else:
+                    child1, child2 = parent1.copy(), parent2.copy()
+                new_population.append(child1)
+                new_population.append(child2)
+            
+            # 变异
+            for i in range(len(new_population)):
+                if np.random.rand() < self.mutation_rate:
+                    mutated = self.mutate(new_population[i])
+                    # 边界检查
+                    new_population[i] = self.check_bounds(mutated)
+            
+            population = np.array(new_population)[:self.pop_size]
+            
+            # 计算适应度
+            fitness = np.array([self.obj_func(self.check_bounds(ind)) for ind in population])
+            
+            # 更新历史记录
+            current_best = np.min(fitness)
+            current_avg = np.mean(fitness)
+            self.history['best_fitness'].append(current_best)
+            self.history['avg_fitness'].append(current_avg)
+            
+            # 更新最优解
+            if current_best < best_fitness:
+                best_fitness = current_best
+                best_individual = population[np.argmin(fitness)]
+            
+            if self.verbose:
+                pbar.set_postfix({'最优值': f"{best_fitness:.4f}", '当前最优': f"{current_best:.4f}"})
+                pbar.update(1)
+        
+        if self.verbose:
+            pbar.close()
+        
+        return best_individual, best_fitness
     
-    def decode_population(self, population, tsp):
-        """
-        解码整个种群
-        """
-        return [self.decode_individual(ind, tsp) for ind in population]
+    def elitism_iterator(self):
+        """精英主义遗传算法"""
+        population = self.init_population()
+        fitness = np.array([self.obj_func(ind) for ind in population])
+        
+        best_fitness = np.min(fitness)
+        best_individual = population[np.argmin(fitness)]
+        self.history['best_fitness'].append(best_fitness)
+        self.history['avg_fitness'].append(np.mean(fitness))
+        
+        if self.verbose:
+            pbar = tqdm(range(self.generations), desc="精英GA进化进度")
+        
+        for gen in range(self.generations):
+            # 选择精英
+            elite_indices = np.argsort(fitness)[:self.elite_size]
+            elite_population = population[elite_indices]
+            elite_fitness = fitness[elite_indices]
+            
+            # 选择非精英
+            non_elite_population = np.delete(population, elite_indices, axis=0)
+            non_elite_fitness = np.delete(fitness, elite_indices)
+            
+            # 对非精英进行选择
+            selected_non_elite = self.select(non_elite_population, non_elite_fitness)
+            
+            # 交叉
+            new_population = list(elite_population)
+            np.random.shuffle(selected_non_elite)
+            for i in range(0, len(selected_non_elite), 2):
+                if i+1 >= len(selected_non_elite):
+                    new_population.append(self.check_bounds(selected_non_elite[i]))
+                    break
+                
+                parent1, parent2 = selected_non_elite[i], selected_non_elite[i+1]
+                if np.random.rand() < self.crossover_rate:
+                    child1, child2 = self.crossover(parent1, parent2)
+                    # 边界检查
+                    child1 = self.check_bounds(child1)
+                    child2 = self.check_bounds(child2)
+                else:
+                    child1, child2 = parent1.copy(), parent2.copy()
+                new_population.append(child1)
+                new_population.append(child2)
+            
+            # 变异
+            for i in range(self.elite_size, len(new_population)):
+                if np.random.rand() < self.mutation_rate:
+                    mutated = self.mutate(new_population[i])
+                    # 边界检查
+                    new_population[i] = self.check_bounds(mutated)
+            
+            population = np.array(new_population)[:self.pop_size]
+            
+            # 计算适应度
+            fitness = np.array([self.obj_func(self.check_bounds(ind)) for ind in population])
+            
+            # 更新历史记录
+            current_best = np.min(fitness)
+            current_avg = np.mean(fitness)
+            self.history['best_fitness'].append(current_best)
+            self.history['avg_fitness'].append(current_avg)
+            
+            # 更新最优解
+            if current_best < best_fitness:
+                best_fitness = current_best
+                best_individual = population[np.argmin(fitness)]
+            
+            if self.verbose:
+                pbar.set_postfix({'最优值': f"{best_fitness:.4f}", '当前最优': f"{current_best:.4f}"})
+                pbar.update(1)
+        
+        if self.verbose:
+            pbar.close()
+        
+        return best_individual, best_fitness
     
-    def decode_individual(self, individual, tsp):
-        """
-        解码单个个体
-        """
-        return np.argsort(individual)
+    def run(self, elitism=False):
+        """运行遗传算法"""
+        if elitism:
+            return self.elitism_iterator()
+        else:
+            return self.standard_iterator()
 
-class TSP:
-    def __init__(self, data_file):
-        """
-        旅行商问题类
-        """
-        self.load_data(data_file)
-        self.calc_distance_matrix()
-        self.num_cities = len(self.xy)
-    
-    def load_data(self, data_file):
-        """加载城市坐标数据"""
-        sj0 = np.loadtxt(data_file)
-        x = sj0[:, 0:8:2].flatten()
-        y = sj0[:, 1:8:2].flatten()
-        sj = np.column_stack((x, y))
-        d1 = np.array([70, 40])
-        self.xy = np.vstack((d1, sj, d1))
-        self.sj = self.xy * np.pi / 180  # 角度转弧度
-    
-    def calc_distance_matrix(self):
-        """计算城市间距离矩阵"""
-        n = len(self.sj)
-        self.d = np.zeros((n, n))
-        
-        for i in range(n):
-            for j in range(i+1, n):
-                self.d[i, j] = 6370 * np.arccos(np.cos(self.sj[i, 0]-self.sj[j, 0]) * np.cos(self.sj[i, 1]) * \
-                              np.cos(self.sj[j, 1]) + np.sin(self.sj[i, 1]) * np.sin(self.sj[j, 1]))
-        
-        self.d = self.d + self.d.T
-    
-    def calculate_path_length(self, path):
-        """计算路径长度"""
-        length = 0
-        for i in range(len(path)-1):
-            length += self.d[path[i], path[i+1]]
-        return length
 
-def plot_path(xy, path, title):
-    """绘制路径图"""
-    xx = xy[path, 0]
-    yy = xy[path, 1]
-    plt.figure(figsize=(10, 6))
-    plt.plot(xx, yy, '-o')
-    plt.xlabel('X')
-    plt.ylabel('Y')
-    plt.title(title)
-    plt.grid(True)
-    plt.show()
+class ContinuousGA(BaseGA):
+    """连续优化问题的遗传算法"""
+    def __init__(self, obj_func, dim, lower_bound, upper_bound, **kwargs):
+        super().__init__(obj_func, dim, **kwargs)
+        self.lower_bound = lower_bound
+        self.upper_bound = upper_bound
+    
+    def init_population(self):
+        """初始化种群"""
+        return np.random.uniform(
+            self.lower_bound, self.upper_bound, 
+            (self.pop_size, self.dim)
+        )
+    
+    def check_bounds(self, individual):
+        """确保个体在边界范围内"""
+        return np.clip(individual, self.lower_bound, self.upper_bound)
+    
+    def crossover(self, parent1, parent2):
+        """算术交叉"""
+        alpha = np.random.rand(self.dim)
+        child1 = alpha * parent1 + (1 - alpha) * parent2
+        child2 = (1 - alpha) * parent1 + alpha * parent2
+        return child1, child2
+    
+    def mutate(self, individual):
+        """高斯变异"""
+        mutation_strength = 0.1 * (self.upper_bound - self.lower_bound)
+        mutated = individual + mutation_strength * np.random.randn(self.dim)
+        return mutated
 
-def plot_convergence(history, title):
+
+def plot_convergence(history, title='遗传算法收敛曲线'):
     """绘制收敛曲线"""
     plt.figure(figsize=(10, 6))
     plt.plot(history['best_fitness'], label='最优适应度')
     plt.plot(history['avg_fitness'], label='平均适应度')
     plt.title(title)
     plt.xlabel('Generation')
-    plt.ylabel('Path Length')
+    plt.ylabel('Fitness')
     plt.legend()
+    plt.grid(True)
     plt.show()
 
+
+def solve_continuous_problem():
+    """解决连续优化问题"""
+    print("="*50)
+    print("连续优化问题测试")
+    print("="*50)
+    
+    # 基本GA
+    ga_cont = ContinuousGA(
+        obj_func=Rastrigin, 
+        dim=10, 
+        lower_bound=-5.12, 
+        upper_bound=5.12,
+        pop_size=100,
+        generations=100,
+        verbose=True
+    )
+    best_solution, best_value = ga_cont.run(elitism=False)
+    print(f"基本GA - 最优值: {best_value:.4f}")
+    plot_convergence(ga_cont.history, '基本GA收敛曲线')
+    
+    # 精英GA
+    ga_elite = ContinuousGA(
+        obj_func=Rastrigin, 
+        dim=10, 
+        lower_bound=-5.12, 
+        upper_bound=5.12,
+        pop_size=100,
+        generations=100,
+        verbose=True
+    )
+    best_solution, best_value = ga_elite.run(elitism=True)
+    print(f"精英GA - 最优值: {best_value:.4f}")
+    plot_convergence(ga_elite.history, '精英GA收敛曲线')
+
 if __name__ == "__main__":
-    # 初始化问题实例和算法
-    tsp = TSP(r'data\obj_longitude_latitude.txt')
-    ga = GA(population_size=50, generations=100, mutation_rate=0.1)
-    
-    # 求解问题
-    best_path, best_length = ga.solve(tsp)
-    
-    # 输出结果
-    print(f"最优路径长度: {best_length:0.4f}")
-    print(f"最优路径: {best_path}")
-    
-    # 可视化
-    plot_path(tsp.xy, best_path, '遗传算法求解旅行商问题最优路径')
-    plot_convergence(ga.history, '遗传算法收敛曲线')
+    solve_continuous_problem()

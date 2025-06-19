@@ -150,17 +150,25 @@ class TSPProblem2:
     
     def calculate_path_length(self, path):
         """计算闭环路径长度（明确包含返回起点的距离）"""
+        # 添加路径验证
+        if np.min(path) < 0 or np.max(path) >= len(self.xy):
+            return float('inf')
+        
         length = 0
         n = len(path)
-        # 确保路径从起点(索引0)开始
         for i in range(n):
             length += self.d[path[i], path[(i+1) % n]]
         return length
     
     def plot_solution(self, path, length):
         """绘制路径图（明确标注起点）"""
+        # 添加路径验证
+        if np.min(path) < 0 or np.max(path) >= len(self.xy):
+            print(f"警告：无效路径包含索引{np.min(path)}-{np.max(path)}，应为0-{len(self.xy)-1}")
+            return
+        
         # 确保路径闭环
-        closed_path = path + [path[0]]
+        closed_path = list(path) + [path[0]]
         xx = self.xy[closed_path, 0]
         yy = self.xy[closed_path, 1]
         
@@ -176,7 +184,6 @@ class TSPProblem2:
         
         # 添加编号标注
         for i, (x, y) in enumerate(zip(xx[:-1], yy[:-1])):
-            if i == 0: continue  # 起点已特殊标注
             plt.text(x, y, str(i), color='black', fontsize=8)
         
         plt.title(f'TSP优化路径 (总长度: {length:.2f}km)')
