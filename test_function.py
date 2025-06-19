@@ -46,11 +46,15 @@ def plot_func3():
     ax.set_title('f(x,y) = -((x^2+y-1)^2 + (x+y^2-7)^2)/200 + 10')
     plt.show()
 
+# test_function.py 中的修改
 def Rastrigin(X, A=10):
-    """支持1D和2D输入的Rastrigin函数"""
+    """支持1D和2D输入的Rastrigin函数，确保返回标量"""
     if X.ndim == 1:
-        X = X.reshape(1, -1)  # 转为2D
-    return A * X.shape[1] + np.sum(X**2 - A * np.cos(2 * np.pi * X), axis=1)
+        # 单个个体直接计算并返回标量
+        return A * len(X) + np.sum(X**2 - A * np.cos(2 * np.pi * X))
+    else:
+        # 多个个体返回一维数组
+        return A * X.shape[1] + np.sum(X**2 - A * np.cos(2 * np.pi * X), axis=1)
 
 def Square(x):
     """平方和测试函数"""
