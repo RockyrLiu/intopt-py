@@ -164,8 +164,8 @@ def solve_continuous_problem():
         dim=10, 
         lower_bound=-5.12, 
         upper_bound=5.12,
-        pop_size=100,
-        generations=100,
+        pop_size=50,
+        generations=1000,
         verbose=True
     )
     best_solution, best_value = ga_chaos.run(elitism=True)
@@ -203,8 +203,8 @@ def solve_tsp_problem2():
     # 混沌TSP GA
     ga_tsp_chaos = ChaosTSPGA(
         tsp_problem=tsp_problem,
-        pop_size=200,
-        generations=500,
+        pop_size=100,
+        generations=200,
         verbose=True
     )
     best_path, best_length = ga_tsp_chaos.run(elitism=True)

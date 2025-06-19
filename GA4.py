@@ -1,132 +1,91 @@
-# 本代码参考Eyal Wirsansky《Hands-On Genetic Algorithms with Python》，165-170
-from deap import base
-from deap import creator
-from deap import tools
-
+# tsp_optimization.py
 import random
 import numpy as np
-import math
-
 import matplotlib.pyplot as plt
-import seaborn as sns
+from deap import base, creator, tools, algorithms
+from test_function import TSPProblem1, TSPProblem2
 
-from utils import elitism
+plt.rcParams['font.sans-serif'] = ['SimHei']  # 设置字体为黑体
+plt.rcParams['axes.unicode_minus'] = False  # 正确显示负号
 
-# 问题常量：
-DIMENSIONS = 2  # 维度数量
-BOUND_LOW, BOUND_UP = -1.25, 1.25  # 所有维度的边界值
+# 设置随机种子
+random.seed(42)
+np.random.seed(42)
 
-# 遗传算法常量：
-POPULATION_SIZE = 300
-P_CROSSOVER = 0.9  # 交叉概率
-P_MUTATION = 0.5  #0.1   # (也可尝试0.5) 变异概率
-MAX_GENERATIONS = 300
-HALL_OF_FAME_SIZE = 30
-CROWDING_FACTOR = 20.0  # 交叉和变异的拥挤因子
-PENALTY_VALUE = 10.0    # 违反约束的固定惩罚值
-DISTANCE_THRESHOLD = 0.1
+def setup_tsp_optimization(tsp_problem):
+    """设置TSP问题优化的遗传算法"""
+    
+    # 创建适应度类和个体类
+    creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
+    creator.create("Individual", list, fitness=creator.FitnessMin)
+    
+    toolbox = base.Toolbox()
+    
+    # 定义个体生成函数
+    def create_individual():
+        ind = list(range(tsp_problem.N))
+        random.shuffle(ind)
+        return ind
+    
+    toolbox.register("individual", tools.initIterate, creator.Individual, create_individual)
+    toolbox.register("population", tools.initRepeat, list, toolbox.individual)
+    
+    # 定义评估函数
+    def evaluate(individual):
+        return tsp_problem.calculate_path_length(individual),
+    
+    toolbox.register("evaluate", evaluate)
+    toolbox.register("mate", tools.cxOrdered)  # 有序交叉
+    toolbox.register("mutate", tools.mutShuffleIndexes, indpb=0.2)  # 索引洗牌变异
+    toolbox.register("select", tools.selTournament, tournsize=3)
+    
+    return toolbox
 
-# 设置随机种子：
-RANDOM_SEED = 42
-random.seed(RANDOM_SEED)
-
-toolbox = base.Toolbox()
-
-# 定义单目标最小化适应度策略：
-creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
-
-# 基于列表创建Individual类：
-creator.create("Individual", list, fitness=creator.FitnessMin)
-
-
-# 辅助函数：创建在给定范围[low, up]内均匀分布的随机实数
-# 假设每个维度的范围相同
-def randomFloat(low, up):
-    return [random.uniform(l, u) for l, u in zip([low] * DIMENSIONS, [up] * DIMENSIONS)]
-
-# 创建操作符，随机返回所需范围和维度的浮点数：
-toolbox.register("attrFloat", randomFloat, BOUND_LOW, BOUND_UP)
-
-# 创建个体操作符来填充Individual实例：
-toolbox.register("individualCreator", tools.initIterate, creator.Individual, toolbox.attrFloat)
-
-# 创建种群操作符来生成个体列表：
-toolbox.register("populationCreator", tools.initRepeat, list, toolbox.individualCreator)
-
-
-# Simionescu函数作为给定个体的适应度：
-def simionescu(individual):
-    x = individual[0]
-    y = individual[1]
-    f = 0.1 * x * y
-    return f,  # 返回元组
-
-toolbox.register("evaluate", simionescu)
-
-# 使用约束定义有效输入域：
-def feasible(individual):
-    """个体的可行域函数。
-    如果可行返回True，否则返回False。
-    """
-    x = individual[0]
-    y = individual[1]
-
-    # 原始约束：
-    if x**2 + y**2 > (1 + 0.2 * math.cos(8.0 * math.atan2(x, y)))**2:
-        return False
-
-    # 之前找到的解作为附加约束：
-    elif (x - 0.848)**2 + (y + 0.848)**2 < DISTANCE_THRESHOLD**2:
-        return False
-
-    else:
-        return True
-
-# 用delta惩罚函数装饰适应度函数：
-toolbox.decorate("evaluate", tools.DeltaPenalty(feasible, PENALTY_VALUE))
-
-# 遗传操作符：
-toolbox.register("select", tools.selTournament, tournsize=2)
-toolbox.register("mate", tools.cxSimulatedBinaryBounded, low=BOUND_LOW, up=BOUND_UP, eta=CROWDING_FACTOR)
-toolbox.register("mutate", tools.mutPolynomialBounded, low=BOUND_LOW, up=BOUND_UP, eta=CROWDING_FACTOR, indpb=1.0/DIMENSIONS)
-
-
-# 遗传算法流程：
-def main():
-
-    # 创建初始种群（第0代）：
-    population = toolbox.populationCreator(n=POPULATION_SIZE)
-
-    # 准备统计对象：
+def optimize_tsp(tsp_problem, pop_size=100, n_gen=500, cxpb=0.8, mutpb=0.2):
+    """优化TSP问题"""
+    toolbox = setup_tsp_optimization(tsp_problem)
+    
+    # 创建初始种群
+    pop = toolbox.population(n=pop_size)
+    
+    # 注册统计信息
     stats = tools.Statistics(lambda ind: ind.fitness.values)
-    stats.register("min", np.min)
     stats.register("avg", np.mean)
-
-    # 定义名人堂对象：
-    hof = tools.HallOfFame(HALL_OF_FAME_SIZE)
-
-    # 使用精英保留策略执行遗传算法流程：
-    population, logbook = elitism.eaSimpleWithElitism(population, toolbox, cxpb=P_CROSSOVER, mutpb=P_MUTATION,
-                                              ngen=MAX_GENERATIONS, stats=stats, halloffame=hof, verbose=True)
-
-    # 打印找到的最佳解信息：
-    best = hof.items[0]
-    print("-- Best Individual = ", best)
-    print("-- Best Fitness = ", best.fitness.values[0])
-
-    # 提取统计信息：
-    minFitnessValues, meanFitnessValues = logbook.select("min", "avg")
-
-    # 绘制统计图：
-    sns.set_style("whitegrid")
-    plt.plot(minFitnessValues, color='red')
-    plt.plot(meanFitnessValues, color='green')
-    plt.xlabel('Generation')
-    plt.ylabel('Min / Average Fitness')
-    plt.title('Min and Average fitness over Generations')
-
+    stats.register("min", np.min)
+    stats.register("max", np.max)
+    
+    # 运行算法
+    result, logbook = algorithms.eaSimple(pop, toolbox, cxpb=cxpb, mutpb=mutpb,
+                                         ngen=n_gen, stats=stats, verbose=True)
+    
+    # 获取最佳个体
+    best_individual = tools.selBest(result, k=1)[0]
+    best_fitness = best_individual.fitness.values[0]
+    
+    print(f"\n最佳路径: {best_individual}")
+    print(f"最短距离: {best_fitness}")
+    
+    # 绘制结果
+    tsp_problem.plot_solution(best_individual, best_fitness)
+    
+    # 绘制进化过程
+    gen = logbook.select("gen")
+    fit_mins = logbook.select("min")
+    
+    plt.figure(figsize=(10, 5))
+    plt.plot(gen, fit_mins, "b-", label="Minimum Distance")
+    plt.xlabel("Generation")
+    plt.ylabel("Distance")
+    plt.title("Evolution of Minimum Distance")
+    plt.legend()
+    plt.grid(True)
     plt.show()
 
-
 if __name__ == "__main__":
-    main()
+    print("优化TSP问题1...")
+    tsp1 = TSPProblem1()
+    optimize_tsp(tsp1, pop_size=150, n_gen=800)
+    
+    print("\n优化TSP问题2...")
+    tsp2 = TSPProblem2()
+    optimize_tsp(tsp2, pop_size=200, n_gen=1000)

@@ -9,7 +9,7 @@ plt.rcParams['axes.unicode_minus'] = False  # 正确显示负号
 class BaseGA:
     """遗传算法基类"""
     def __init__(self, obj_func, dim, pop_size=50, generations=100, 
-                 crossover_rate=0.8, mutation_rate=0.1, elitism_ratio=0.1, 
+                 crossover_rate=0.6, mutation_rate=0.2, elitism_ratio=0.1, 
                  verbose=True):
         """
         参数:
@@ -279,8 +279,8 @@ def solve_continuous_problem():
         dim=10, 
         lower_bound=-5.12, 
         upper_bound=5.12,
-        pop_size=100,
-        generations=100,
+        pop_size=50,
+        generations=1000,
         verbose=True
     )
     best_solution, best_value = ga_cont.run(elitism=False)
@@ -293,8 +293,8 @@ def solve_continuous_problem():
         dim=10, 
         lower_bound=-5.12, 
         upper_bound=5.12,
-        pop_size=100,
-        generations=100,
+        pop_size=50,
+        generations=1000,
         verbose=True
     )
     best_solution, best_value = ga_elite.run(elitism=True)
