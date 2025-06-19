@@ -90,7 +90,19 @@ P_{m1}, & \text{if } f < f_{\text{avg}}
 3. 与其他智能优化算法相结合
 
 
-## 蚁群算法
+## 蚁群算法，Ant Colony Optimization
+### 基本理论
+- 包子阳《智能优化算法及其MATLAB实例》，85-107
+
+### 实例
+1. ACO1.py: tsp问题
+2. ACO2.py: 连续函数优化
+
+### 改进
+1. 精英蚂蚁系统
+2. 最大最小蚂蚁系统
+3. 基于排序的蚁群算法
+4. 自适应蚁群算法
 
 
 ## 差分进化算法，Differential Evolution

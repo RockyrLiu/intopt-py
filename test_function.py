@@ -118,7 +118,7 @@ class TSPProblem1:
         plt.show()
 
 class TSPProblem2:
-    """TSP2问题封装（最终修正版）"""
+    """TSP2问题封装"""
     def __init__(self, data_file="data\dsp2_data.txt"):
         self.start_point = np.array([70, 40])  # 明确硬编码起点
         self.load_data(data_file)
@@ -135,7 +135,7 @@ class TSPProblem2:
     
     def calc_distance_matrix(self):
         n = len(self.sj)
-        self.d = np.zeros((n, n))
+        self.D = np.zeros((n, n))
         # 使用Haversine公式
         for i in range(n):
             for j in range(i+1, n):
@@ -145,8 +145,8 @@ class TSPProblem2:
                 dlat = lat2 - lat1
                 a = np.sin(dlat/2)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon/2)**2
                 c = 2 * np.arcsin(np.sqrt(a))
-                self.d[i, j] = 6370 * c
-                self.d[j, i] = self.d[i, j]
+                self.D[i, j] = 6370 * c
+                self.D[j, i] = self.D[i, j]
     
     def calculate_path_length(self, path):
         """计算闭环路径长度（明确包含返回起点的距离）"""
@@ -157,7 +157,7 @@ class TSPProblem2:
         length = 0
         n = len(path)
         for i in range(n):
-            length += self.d[path[i], path[(i+1) % n]]
+            length += self.D[path[i], path[(i+1) % n]]
         return length
     
     def plot_solution(self, path, length):
