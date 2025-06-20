@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from test_function import TSPProblem1
+from test_function import TSPProblem1, TSPProblem2
 from tqdm import tqdm
 
 plt.rcParams['font.sans-serif'] = ['SimHei']  # 设置字体为黑体
@@ -87,10 +87,11 @@ class ACO:
 
 class ACO_TSP(ACO):
     """蚁群算法解决TSP问题"""
-    def __init__(self, m=50, max_iter=200, alpha=1, beta=5, rho=0.1, Q=100, verbose=True):
+    def __init__(self, m=50, max_iter=200, alpha=1, beta=5, rho=0.1, Q=100, 
+                 problem=TSPProblem1(), verbose=True):
         super().__init__(m, max_iter, alpha, beta, rho, Q, verbose)
         
-        self.problem = TSPProblem1()
+        self.problem = problem
         self.n = self.problem.N
         self.D = self.problem.D
         self.Eta = 1 / (self.D + np.eye(self.n) * 1e-10)
@@ -145,12 +146,12 @@ class ACO_TSP(ACO):
 def test_aco_tsp():
     """测试ACO求解TSP问题"""
     print("="*50)
-    print("蚁群算法求解TSP问题 (31个城市)")
+    print("蚁群算法求解TSP问题")
     print("="*50)
     
     # 创建并运行ACO_TSP
-    aco = ACO_TSP(m=50, max_iter=200, alpha=1, beta=5, rho=0.1, Q=100)
-    best_path, best_length = aco.iterator()
+    aco = ACO_TSP(m=50, max_iter=200, alpha=1, beta=5, rho=0.1, Q=100, problem=TSPProblem2())
+    best_path, best_length = aco.run()
     
     # 输出结果
     print(f"\n最优路径长度: {best_length:.2f}")
