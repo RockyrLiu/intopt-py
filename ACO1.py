@@ -1,232 +1,166 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from tqdm import tqdm 
-from test_function import TSPProblem2
+from test_function import TSPProblem1
+from tqdm import tqdm
 
-class ACO_TSP:
-    """蚁群算法解决TSP问题"""
-    def __init__(self, tsp, num_ants=50, alpha=1, beta=5, rho=0.1, Q=100, 
-                 max_iter=200, elite_weight=2.0, tau_min=0.1, tau_max=10.0,
-                 verbose=True):
-        """
-        初始化蚁群算法参数
+plt.rcParams['font.sans-serif'] = ['SimHei']  # 设置字体为黑体
+plt.rcParams['axes.unicode_minus'] = False  # 正确显示负号
+
+class ACO:
+    """蚁群算法基类"""
+    def __init__(self, m, max_iter, alpha, beta, rho, Q, verbose=True):
+        self.m = m  # 蚂蚁数量
+        self.max_iter = max_iter  # 最大迭代次数
+        self.alpha = alpha  # 信息素重要程度参数
+        self.beta = beta  # 启发式因子重要程度参数
+        self.rho = rho  # 信息素蒸发系数
+        self.Q = Q  # 信息素增加强度系数
+        self.verbose = verbose  # 是否显示进度条
+        self.history = {'best_fitness': [], 'avg_fitness': []}  # 记录历史最优值和平均值
+        self.best_solution = None
+        self.best_fitness = np.inf
         
-        参数:
-        tsp: TSP问题实例
-        num_ants: 蚂蚁数量
-        alpha: 信息素重要程度
-        beta: 启发式因子重要程度
-        rho: 信息素挥发系数
-        Q: 信息素强度
-        max_iter: 最大迭代次数
-        elite_weight: 精英蚂蚁信息素增强权重
-        tau_min: 信息素最小值
-        tau_max: 信息素最大值
-        verbose: 是否显示进度条
-        """
-        self.tsp = tsp
-        self.n = tsp.N  # 城市数量
-        self.D = tsp.D  # 距离矩阵
+    def initialize(self):
+        """初始化算法状态"""
+        raise NotImplementedError("Subclasses must implement initialize method")
         
-        # 算法参数
-        self.m = num_ants
-        self.alpha = alpha
-        self.beta = beta
-        self.rho = rho
-        self.Q = Q
-        self.max_iter = max_iter
-        self.elite_weight = elite_weight
-        self.tau_min = tau_min
-        self.tau_max = tau_max
-        self.verbose = verbose
+    def build_solutions(self):
+        """构建蚂蚁的解决方案"""
+        raise NotImplementedError("Subclasses must implement build_solutions method")
         
-        # 预计算启发因子(距离倒数)
-        self.eta = 1 / (self.D + np.eye(self.n) * 1e10)  # 对角线设为接近0
-        self.eta = np.where(np.isfinite(self.eta), self.eta, 0)  # 处理无穷大值
+    def evaluate_solutions(self):
+        """评估解决方案的质量"""
+        raise NotImplementedError("Subclasses must implement evaluate_solutions method")
         
-        # 初始化信息素矩阵
-        self.tau = np.ones((self.n, self.n)) * tau_max
+    def update_pheromone(self):
+        """更新信息素"""
+        raise NotImplementedError("Subclasses must implement update_pheromone method")
         
-        # 结果记录
-        self.best_path = None
-        self.best_length = np.inf
-        self.history = {'best_length': [], 'avg_length': []}
-    
-    def initialize_ants(self):
-        """初始化蚂蚁位置"""
-        tabu = np.zeros((self.m, self.n), dtype=int)
-        # 使用向量化操作随机放置蚂蚁
-        tabu[:, 0] = np.random.choice(self.n, self.m, replace=True)
-        return tabu
-    
-    def construct_path_for_ant(self, ant_idx, tabu):
-        """为单只蚂蚁构建路径"""
-        visited = set([tabu[ant_idx, 0]])  # 使用集合存储已访问城市
-        for step in range(1, self.n):
-            current_city = tabu[ant_idx, step-1]
+    def update_history(self, fitness_values):
+        """更新历史记录"""
+        current_best = np.min(fitness_values)
+        current_avg = np.mean(fitness_values)
+        
+        if current_best < self.best_fitness:
+            self.best_fitness = current_best
+            self.best_solution = self.current_solutions[np.argmin(fitness_values)].copy()
             
-            # 获取未访问城市
-            unvisited = np.array([city for city in range(self.n) if city not in visited])
+        self.history['best_fitness'].append(self.best_fitness)
+        self.history['avg_fitness'].append(current_avg)
+        
+    def iterator(self):
+        """迭代优化"""
+        self.initialize()
+        
+        iter_range = tqdm(range(self.max_iter), desc="ACO") if self.verbose else range(self.max_iter)
+        
+        for _ in iter_range:
+            self.build_solutions()
+            fitness_values = self.evaluate_solutions()
+            self.update_history(fitness_values)
+            self.update_pheromone()
             
-            # 计算转移概率
-            prob = (self.tau[current_city, unvisited] ** self.alpha) * \
-                   (self.eta[current_city, unvisited] ** self.beta)
-            
-            # 避免除以零
-            total_prob = np.sum(prob)
-            if total_prob > 0:
-                prob /= total_prob
-            else:
-                # 如果所有概率为零，则均匀分布
-                prob = np.ones_like(prob) / len(prob)
-            
-            # 轮盘赌选择下一个城市
-            next_city = np.random.choice(unvisited, p=prob)
-            tabu[ant_idx, step] = next_city
-            visited.add(next_city)
-        
-        return tabu[ant_idx]
-    
-    def construct_solutions(self, tabu):
-        """构建所有蚂蚁的路径"""
-        # 使用向量化操作构建路径
-        for ant in range(self.m):
-            tabu[ant] = self.construct_path_for_ant(ant, tabu)
-        return tabu
-    
-    def calculate_path_lengths(self, tabu):
-        """向量化计算所有路径长度"""
-        # 创建路径对矩阵
-        from_indices = tabu
-        to_indices = np.roll(tabu, -1, axis=1)
-        
-        # 使用向量化索引获取所有距离
-        distances = self.D[from_indices, to_indices]
-        
-        # 计算每条路径的总长度
-        return np.sum(distances, axis=1)
-    
-    def update_pheromone(self, tabu, lengths):
-        """更新信息素 - 使用向量化操作"""
-        # 信息素挥发
-        self.tau *= (1 - self.rho)
-        
-        # 初始化信息素增量矩阵
-        delta_tau = np.zeros((self.n, self.n))
-        
-        # 计算所有蚂蚁的信息素贡献
-        for ant in range(self.m):
-            path = tabu[ant]
-            # 创建路径边索引
-            from_cities = path
-            to_cities = np.roll(path, -1)
-            
-            # 为路径上的每条边添加信息素
-            np.add.at(delta_tau, (from_cities, to_cities), self.Q / lengths[ant])
-        
-        # 精英蚂蚁额外增强
-        if self.best_path is not None:
-            from_cities = self.best_path
-            to_cities = np.roll(self.best_path, -1)
-            np.add.at(delta_tau, (from_cities, to_cities), self.elite_weight * self.Q / self.best_length)
-        
-        # 应用信息素增量
-        self.tau += delta_tau
-        
-        # 信息素边界限制
-        np.clip(self.tau, self.tau_min, self.tau_max, out=self.tau)
+            if self.verbose:
+                iter_range.set_postfix({
+                    '最优值': f"{self.best_fitness:.4f}",
+                    '平均值': f"{self.history['avg_fitness'][-1]:.4f}"
+                })
+                
+        return self.best_solution, self.best_fitness
     
     def run(self):
-        """运行蚁群算法"""
-        # 初始化蚂蚁
-        tabu = self.initialize_ants()
+        """运行算法"""
+        return self.iterator()
         
-        # 设置迭代范围（带或不带进度条）
-        iter_range = range(self.max_iter)
-        if self.verbose:
-            pbar = tqdm(iter_range, desc="蚁群算法优化")
-        
-        # 主迭代循环
-        for iter in iter_range:
-            # 构建路径
-            tabu = self.construct_solutions(tabu)
-            
-            # 保留上代最优路径
-            if self.best_path is not None:
-                tabu[0] = self.best_path
-            
-            # 计算路径长度
-            lengths = self.calculate_path_lengths(tabu)
-            
-            # 更新最优解
-            min_idx = np.argmin(lengths)
-            if lengths[min_idx] < self.best_length:
-                self.best_length = lengths[min_idx]
-                self.best_path = tabu[min_idx].copy()
-            
-            # 记录历史
-            self.history['best_length'].append(self.best_length)
-            self.history['avg_length'].append(np.mean(lengths))
-            
-            # 更新信息素
-            self.update_pheromone(tabu, lengths)
-            
-            # 更新进度条
-            if self.verbose:
-                pbar.set_postfix({'最优长度': f"{self.best_length:.2f}"})
-                pbar.update(1)
-        
-        # 关闭进度条
-        if self.verbose:
-            pbar.close()
-        
-        return self.best_path, self.best_length
-    
-    def plot_convergence(self):
-        """绘制收敛曲线"""
-        plt.figure(figsize=(10, 5))
-        plt.plot(self.history['best_length'], 'b-', linewidth=2, label='最优路径长度')
-        plt.plot(self.history['avg_length'], 'g--', linewidth=1, label='平均路径长度')
+    def plot_history(self):
+        """绘制适应度进化曲线"""
+        plt.figure(figsize=(10, 6))
+        plt.plot(self.history['best_fitness'], 'b-', linewidth=2, label='最佳适应度')
+        plt.plot(self.history['avg_fitness'], 'r--', linewidth=2, label='平均适应度')
         plt.xlabel('迭代次数')
-        plt.ylabel('路径长度')
-        plt.title('蚁群算法收敛曲线')
+        plt.ylabel('目标函数值')
+        plt.title('适应度进化曲线')
         plt.legend()
         plt.grid(True)
         plt.show()
 
-def main():
-    # 初始化TSP问题
-    tsp = TSPProblem2()
+
+class ACO_TSP(ACO):
+    """蚁群算法解决TSP问题"""
+    def __init__(self, m=50, max_iter=200, alpha=1, beta=5, rho=0.1, Q=100, verbose=True):
+        super().__init__(m, max_iter, alpha, beta, rho, Q, verbose)
+        
+        self.problem = TSPProblem1()
+        self.n = self.problem.N
+        self.D = self.problem.D
+        self.Eta = 1 / (self.D + np.eye(self.n) * 1e-10)
+        self.Tau = np.ones((self.n, self.n))
+        self.Tabu = None  # 蚂蚁的路径
+        
+    def initialize(self):
+        """初始化算法状态"""
+        self.Tabu = np.zeros((self.m, self.n), dtype=int)
+        self.Tabu[:, 0] = self.initialize_ants()
+        
+    def initialize_ants(self):
+        """初始化蚂蚁位置"""
+        num_perms = int(np.ceil(self.m / self.n))
+        all_perms = np.concatenate([np.random.permutation(self.n) for _ in range(num_perms)])
+        return all_perms[:self.m]
     
-    # 设置算法参数
-    aco = ACO_TSP(
-        tsp,
-        num_ants=200,
-        alpha=1,
-        beta=5,
-        rho=0.1,
-        Q=100,
-        max_iter=200,
-        elite_weight=2.0,  # 精英蚂蚁权重
-        tau_min=0.1,       # 信息素最小值
-        tau_max=10.0,      # 信息素最大值
-        verbose=True       # 显示进度条
-    )
+    def build_solutions(self):
+        """构建蚂蚁的路径解决方案"""
+        for j in range(1, self.n):
+            for i in range(self.m):
+                visited = self.Tabu[i, :j]
+                unvisited = np.setdiff1d(np.arange(self.n), visited)
+                
+                # 计算转移概率
+                tau = self.Tau[visited[-1], unvisited]
+                eta = self.Eta[visited[-1], unvisited]
+                P = (tau ** self.alpha) * (eta ** self.beta)
+                P /= P.sum()
+                
+                # 轮盘赌选择
+                self.Tabu[i, j] = np.random.choice(unvisited, p=P)
+                
+    def evaluate_solutions(self):
+        """评估路径长度"""
+        self.current_solutions = self.Tabu
+        return np.array([self.problem.calculate_path_length(path) for path in self.Tabu])
     
-    # 运行算法
-    best_path, best_length = aco.run()
+    def update_pheromone(self):
+        """更新信息素矩阵"""
+        L = self.evaluate_solutions()
+        Delta_Tau = np.zeros((self.n, self.n))
+        
+        for i in range(self.m):
+            path = self.Tabu[i]
+            Delta_Tau[path[:-1], path[1:]] += self.Q / L[i]
+            Delta_Tau[path[-1], path[0]] += self.Q / L[i]
+        
+        self.Tau = (1 - self.rho) * self.Tau + Delta_Tau
+
+
+def test_aco_tsp():
+    """测试ACO求解TSP问题"""
+    print("="*50)
+    print("蚁群算法求解TSP问题 (31个城市)")
+    print("="*50)
+    
+    # 创建并运行ACO_TSP
+    aco = ACO_TSP(m=50, max_iter=200, alpha=1, beta=5, rho=0.1, Q=100)
+    best_path, best_length = aco.iterator()
     
     # 输出结果
-    print(f"\n最优路径: {best_path}")
-    print(f"最短距离: {best_length:.2f}")
+    print(f"\n最优路径长度: {best_length:.2f}")
+    print("最优路径:", best_path)
     
-    # 绘制收敛曲线
-    aco.plot_convergence()
-    
-    # 绘制TSP解
-    tsp.plot_solution(best_path, best_length)
+    # 绘制结果
+    aco.plot_history()
+    aco.problem.plot_solution(best_path, best_length)
+
 
 if __name__ == "__main__":
-    plt.rcParams['font.sans-serif'] = ['SimHei']  # 设置字体为黑体
-    plt.rcParams['axes.unicode_minus'] = False  # 正确显示负号
-    main()
+    # 运行测试
+    test_aco_tsp()
