@@ -192,3 +192,35 @@ class TSPProblem2:
         plt.legend(loc='upper right')
         plt.grid(True, linestyle='--', alpha=0.5)
         plt.show()
+
+
+class KnapsackProblem:
+    """0-1背包问题封装类"""
+    def __init__(self, capacity, volumes, values, penalty=2):
+        """
+        初始化背包问题
+        :param capacity: 背包容量
+        :param volumes: 物品体积列表
+        :param values: 物品价值列表
+        :param penalty: 惩罚系数
+        """
+        self.capacity = capacity
+        self.volumes = np.array(volumes)
+        self.values = np.array(values)
+        self.penalty = penalty
+        
+    def fitness(self, X):
+        """
+        计算适应度（背包总价值）
+        :param X: 二进制决策向量 (n_particles, n_items)
+        :return: 适应度值数组
+        """
+        total_values = np.sum(X * self.values, axis=1)
+        total_volumes = np.sum(X * self.volumes, axis=1)
+        
+        # 对超出背包容量的解应用惩罚
+        over_capacity = total_volumes > self.capacity
+        penalties = np.zeros_like(total_values)
+        penalties[over_capacity] = self.penalty * (total_volumes[over_capacity] - self.capacity)
+        
+        return total_values - penalties

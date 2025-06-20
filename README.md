@@ -77,12 +77,14 @@ P_{m1}, & \text{if } f < f_{\text{avg}}
 
 ## 粒子群优化算法，Particle Swarm Optimization
 ### 基本理论
+- 包子阳《智能优化算法及其MATLAB实例》，109-134
 - 秦喜文《数学建模》，172-184
 
 ### 实例
 1. PSO1.py: minimize $f(x)=3x_1^2-2.1x_1^4+\frac{x_1^6}{3}+x_1x_2-3x_2^2+3x_2^4,\ |x_i|\leq 5$
-2. ElitePSO.py: **精英初始化PSO**、**多层PSO**
-3. CPSO.py: 混沌粒子群优化算法
+2. PSO2.py: **离散粒子群优化**解决背包问题
+3. ElitePSO.py: **精英初始化PSO**、**多层PSO**
+4. CPSO.py: 混沌粒子群优化算法
 
 ### 改进
 1. 精英初始化（可以是PSO得到的最优解也可以是其他算法得到的最优解）、多层PSO、采用更合适的惯性权重变化方案
