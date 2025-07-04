@@ -147,4 +147,10 @@ P_{m1}, & \text{if } f < f_{\text{avg}}
 2. 根据搜索进度动态调整禁忌区域大小
 3. 与其他算法相结合
 
+
 ## NSGA-ii
+### 基本理论
+- https://blog.csdn.net/weixin_45526117/article/details/128507020
+
+### 实例
+1. NSGA2.py
