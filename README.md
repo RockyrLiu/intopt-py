@@ -37,9 +37,8 @@
 2. GA2.py: 求解组合优化问题
 3. GA3.py: 基于**共享和小生境**的多极值函数优化
 4. GA4.py: 含有**限制条件**的函数优化
-5. GA_templet.py: 基于DEAP框架的遗传算法模板
-6. GASA1.py: 遗传模拟退火算法: 连续问题
-7. GASA2.py: 遗传模拟退火算法: tsp问题
+5. GASA1.py: 遗传模拟退火算法: 连续问题
+6. GASA2.py: 遗传模拟退火算法: tsp问题
 
 更多基于DEAP框架的遗传算法实例可参看Eyal Wirsansky《Hands-On Genetic Algorithms with Python》
 
