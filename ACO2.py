@@ -1,87 +1,157 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 from test_function import Rastrigin, Square, func2
-from ACO1 import ACO
 
 plt.rcParams['font.sans-serif'] = ['SimHei']  # 设置字体为黑体
 plt.rcParams['axes.unicode_minus'] = False  # 正确显示负号
 
-
-class ACO_Continuous(ACO):
-    """蚁群算法解决连续函数优化问题"""
-    def __init__(self, obj_func, m=20, max_iter=200, alpha=1, beta=5, rho=0.9, Q=1, 
-                 lower_bound=-5, upper_bound=5, dim=None, P0=0.2, step=0.1, verbose=True):
+class ACO_Continuous:
+    """连续空间蚁群算法(仅供参考, 效果欠佳)
+    
+    支持以下策略:
+    1. 'AS' - 基本蚁群算法
+    2. 'EAS' - 精英蚁群算法
+    3. 'MMAS' - 最大最小蚁群算法
+    4. 'AAS' - 自适应蚁群算法
+    """
+    def __init__(self, func, bounds, m=50, maxiter=100, alpha=1, beta=5,
+                 rho=0.1, Q=100, strategy='AS', P0=0.2, step=0.1,
+                 init_positions=None, verbose=True, plot=True):
         """
         参数:
-        obj_func: 目标函数，接受numpy数组输入
-        dim: 明确指定的问题维度（可选）。若为None则根据边界参数自动推断
-        lower_bound: 下界，可以是标量（所有维度相同）或列表/数组（每个维度不同）
-        upper_bound: 上界，可以是标量（所有维度相同）或列表/数组（每个维度不同）
+        func: 目标函数
+        bounds: 边界列表 [(min, max), ...]
+        m: 蚂蚁数量
+        maxiter: 最大迭代次数
+        alpha: 信息素重要程度
+        beta: 启发式因子重要程度
+        rho: 信息素蒸发系数
+        Q: 信息素增量系数
+        strategy: 算法策略(见类文档)
+        P0: 局部搜索概率阈值
+        step: 局部搜索步长
+        init_positions: 初始解列表(可选)
+        verbose: 是否显示进度条
+        plot: 是否绘制结果
         """
-        super().__init__(m, max_iter, alpha, beta, rho, Q, verbose)
-        self.obj_func = obj_func
+        self.function = func
+        self.bounds = bounds
+        self.dim = len(bounds)
+        self.lower_bound = np.array([b[0] for b in bounds])
+        self.upper_bound = np.array([b[1] for b in bounds])
+        self.m = m
+        self.maxiter = maxiter
+        self.alpha = alpha
+        self.beta = beta
+        self.rho = rho
+        self.Q = Q
+        self.strategy = strategy
         self.P0 = P0
         self.step = step
+        self.init_positions = init_positions
+        self.verbose = verbose
+        self.plot = plot
         
-        # 处理边界参数（支持标量或列表/数组）
-        self.lower_bound = np.atleast_1d(lower_bound)
-        self.upper_bound = np.atleast_1d(upper_bound)
-        
-        # 维度确定逻辑
-        if dim is not None:
-            self.dim = int(dim)
-            # 扩展边界参数以匹配维度
-            if len(self.lower_bound) == 1:
-                self.lower_bound = np.repeat(self.lower_bound, self.dim)
-            if len(self.upper_bound) == 1:
-                self.upper_bound = np.repeat(self.upper_bound, self.dim)
-        else:
-            # 自动推断维度
-            if len(self.lower_bound) != len(self.upper_bound):
-                raise ValueError("当未指定dim时，lower_bound和upper_bound的维度必须一致")
-            self.dim = len(self.lower_bound)
-        
-        # 最终检查边界维度
-        if len(self.lower_bound) != self.dim or len(self.upper_bound) != self.dim:
-            raise ValueError(f"边界参数维度({len(self.lower_bound)}和{len(self.upper_bound)})与指定维度({self.dim})不匹配")
-            
-        self.positions = None  # 蚂蚁位置矩阵 (dim, m)
+        # 算法状态
+        self.positions = None  # 蚂蚁位置矩阵(dim, m)
         self.Tau = None       # 信息素
         
-    def initialize(self):
-        """初始化蚂蚁位置和信息素"""
-        # 为每个维度生成随机位置
+        # 历史记录
+        self.history = {
+            'best_fitness': [],
+            'avg_fitness': []
+        }
+        self.best_solution = None
+        self.best_fitness = float('inf')
+    
+    def _init_positions(self):
+        """初始化蚂蚁位置"""
         self.positions = np.zeros((self.dim, self.m))
+        
+        # 如果有初始解，优先使用
+        if self.init_positions is not None and len(self.init_positions) > 0:
+            num_init = min(len(self.init_positions), self.m)
+            for i in range(num_init):
+                self.positions[:, i] = np.array(self.init_positions[i][:self.dim])
+        
+        # 剩余蚂蚁随机初始化
         for d in range(self.dim):
             lb = self.lower_bound[d]
             ub = self.upper_bound[d]
-            self.positions[d, :] = np.random.uniform(lb, ub, self.m)
-        
-        # 计算初始信息素（目标函数值）
-        self.Tau = np.array([self.obj_func(self.positions[:, i]) 
-                           for i in range(self.m)])
+            for i in range(len(self.init_positions) if self.init_positions else 0, self.m):
+                self.positions[d, i] = np.random.uniform(lb, ub)
     
-    def clip_position(self, position):
+    def _clip_position(self, position):
         """确保位置在边界范围内"""
         return np.clip(position, self.lower_bound, self.upper_bound)
     
-    def build_solutions(self):
-        """构建蚂蚁的位置解决方案"""
-        self.gen = getattr(self, 'gen', 0)  # 当前迭代次数
-        lamda = 1 / (self.gen + 1)  # 动态调整参数
+    def _evaluate(self):
+        """评估目标函数值"""
+        return np.array([self.function(self.positions[:, i]) for i in range(self.m)])
+    
+    def _update_pheromone_AS(self):
+        """基本蚁群算法信息素更新"""
+        fitness = self._evaluate()
+        self.Tau = (1 - self.rho) * self.Tau + self.Q / (fitness + 1e-10)
+    
+    def _update_pheromone_EAS(self):
+        """精英蚁群算法信息素更新"""
+        fitness = self._evaluate()
+        best_idx = np.argmin(fitness)
+        best_fit = fitness[best_idx]
         
-        # 找到当前最优蚂蚁
+        # 普通蚂蚁信息素更新
+        self.Tau = (1 - self.rho) * self.Tau + self.Q / (fitness + 1e-10)
+        
+        # 精英蚂蚁额外信息素
+        elite_delta = np.zeros(self.m)
+        elite_delta[best_idx] = 2.0 * self.Q / best_fit  # 精英权重为2.0
+        self.Tau += elite_delta
+    
+    def _update_pheromone_MMAS(self):
+        """最大最小蚁群算法信息素更新"""
+        fitness = self._evaluate()
+        best_idx = np.argmin(fitness)
+        best_fit = fitness[best_idx]
+        
+        # 只更新最优解路径上的信息素
+        tau_max = 2.0
+        tau_min = 0.001
+        self.Tau = (1 - self.rho) * self.Tau
+        self.Tau[best_idx] += self.Q / best_fit
+        
+        # 应用信息素上下限
+        self.Tau = np.clip(self.Tau, tau_min, tau_max)
+    
+    def _update_pheromone_AAS(self):
+        """自适应蚁群算法信息素更新"""
+        fitness = self._evaluate()
+        avg_fit = np.mean(fitness)
+        best_fit = np.min(fitness)
+        
+        # 自适应调整rho
+        ratio = best_fit / avg_fit
+        self.rho = 0.01 + (0.5 - 0.01) * ratio  # rho在0.01-0.5之间自适应
+        
+        # 更新信息素
+        self.Tau = (1 - self.rho) * self.Tau + self.Q / (fitness + 1e-10)
+    
+    def _move_ants(self):
+        """蚂蚁移动"""
+        current_iter = getattr(self, 'current_iter', 0)
+        lamda = 1 / (current_iter + 1)  # 动态调整参数
+        
         best_idx = np.argmin(self.Tau)
         Tau_best = self.Tau[best_idx]
-        
         new_positions = np.copy(self.positions)
         
         for i in range(self.m):
-            P = (Tau_best - self.Tau[i]) / (Tau_best + 1e-10)  # 避免除零
+            P = (Tau_best - self.Tau[i]) / (Tau_best + 1e-10)
             
             if P < self.P0:
                 # 局部搜索
-                delta = (2 * np.random.rand(self.dim) - 1)  # [-1, 1]区间随机值
+                delta = (2 * np.random.rand(self.dim) - 1)
                 new_positions[:, i] += delta * self.step * lamda
             else:
                 # 全局搜索
@@ -89,112 +159,163 @@ class ACO_Continuous(ACO):
                     range_d = self.upper_bound[d] - self.lower_bound[d]
                     new_positions[d, i] += (np.random.rand() - 0.5) * range_d
             
-            # 边界处理
-            new_positions[:, i] = self.clip_position(new_positions[:, i])
+            new_positions[:, i] = self._clip_position(new_positions[:, i])
         
-        # 计算新位置的目标函数值
-        new_values = np.array([self.obj_func(new_positions[:, i]) 
-                             for i in range(self.m)])
-        old_values = np.array([self.obj_func(self.positions[:, i]) 
-                             for i in range(self.m)])
+        # 评估新旧位置
+        new_values = np.array([self.function(new_positions[:, i]) for i in range(self.m)])
+        old_values = np.array([self.function(self.positions[:, i]) for i in range(self.m)])
         
-        # 更新位置（只保留更好的解）
+        # 只保留更好的解
         for i in range(self.m):
             if new_values[i] < old_values[i]:
                 self.positions[:, i] = new_positions[:, i]
         
-        self.gen += 1
+        self.current_iter = current_iter + 1
+    
+    def _update_history(self):
+        """更新历史记录"""
+        fitness = self._evaluate()
+        current_best = np.min(fitness)
+        current_avg = np.mean(fitness)
         
-    def evaluate_solutions(self):
-        """评估目标函数值"""
-        self.current_solutions = self.positions.T  # 转置为(m, dim)格式
-        return np.array([self.obj_func(self.positions[:, i]) 
-                       for i in range(self.m)])
-    
-    def update_pheromone(self):
-        """更新信息素"""
-        self.Tau = (1 - self.rho) * self.Tau + self.evaluate_solutions()
-    
-def test_aco_continuous():
-    """测试ACO求解连续函数优化问题"""
-    print("\n" + "="*50)
-    print("蚁群算法求解连续函数优化问题")
-    print("="*50)
-    
-    # 定义目标函数（使用Rastrigin函数作为测试）
-    def objective_func(x):
-        return Rastrigin(np.array(x))  # 将输入转换为numpy数组
-    
-    # 参数设置
-    dim = 2  # 问题维度
-    lower_bound = -5.12  # Rastrigin函数的典型搜索范围
-    upper_bound = 5.12
-    
-    # 创建并运行ACO_Continuous
-    aco = ACO_Continuous(obj_func=objective_func, 
-                        m=50,               # 增加蚂蚁数量
-                        max_iter=200,        # 增加迭代次数
-                        alpha=1, 
-                        beta=2,              # 调整beta值
-                        rho=0.5,            # 调整蒸发系数
-                        Q=1,
-                        lower_bound=lower_bound,
-                        upper_bound=upper_bound,
-                        dim=dim,
-                        P0=0.2, 
-                        step=0.2,            # 增大步长
-                        verbose=True)
-    
-    best_solution, best_value = aco.run()
-    
-    # 输出结果
-    print(f"\n最优解: {np.round(best_solution, 4)}")
-    print(f"最优值: {best_value:.4f}")
-    print(f"理论最优值: 0.0 (在[0,0,...,0]处取得)")
-    
-    # 绘制适应度进化曲线
-    aco.plot_history()
-    
-    # 绘制函数等高线和最优解（仅适用于2维问题）
-    if dim == 2:
-        x = np.linspace(lower_bound, upper_bound, 100)
-        y = np.linspace(lower_bound, upper_bound, 100)
-        X, Y = np.meshgrid(x, y)
-        Z = np.zeros_like(X)
+        if current_best < self.best_fitness:
+            self.best_fitness = current_best
+            self.best_solution = self.positions[:, np.argmin(fitness)].copy()
         
-        # 向量化计算提高效率
-        for i in range(X.shape[0]):
-            for j in range(X.shape[1]):
-                Z[i, j] = objective_func(np.array([X[i, j], Y[i, j]]))  # 确保传入numpy数组
+        self.history['best_fitness'].append(self.best_fitness)
+        self.history['avg_fitness'].append(current_avg)
+    
+    def iterator(self):
+        """执行优化迭代"""
+        # 初始化
+        self._init_positions()
+        self.Tau = self._evaluate()
         
-        plt.figure(figsize=(12, 6))
+        if self.verbose:
+            pbar = tqdm(total=self.maxiter, desc="ACO优化进度")
         
-        # 等高线图
-        plt.subplot(1, 2, 1)
-        plt.contourf(X, Y, Z, levels=20, cmap='viridis')
-        plt.colorbar()
-        plt.scatter(best_solution[0], best_solution[1], 
-                   color='red', s=100, label='最优解')
-        plt.xlabel('x1')
-        plt.ylabel('x2')
-        plt.title('目标函数等高线图')
+        for _ in range(self.maxiter):
+            # 蚂蚁移动
+            self._move_ants()
+            
+            # 信息素更新
+            if self.strategy == 'AS':
+                self._update_pheromone_AS()
+            elif self.strategy == 'EAS':
+                self._update_pheromone_EAS()
+            elif self.strategy == 'MMAS':
+                self._update_pheromone_MMAS()
+            elif self.strategy == 'AAS':
+                self._update_pheromone_AAS()
+            else:
+                raise ValueError(f"未知策略: {self.strategy}")
+            
+            # 更新历史记录
+            self._update_history()
+            
+            # 更新进度条
+            if self.verbose:
+                pbar.set_postfix({
+                    '最优值': f"{self.best_fitness:.6f}",
+                    '平均值': f"{np.mean(self._evaluate()):.6f}",
+                    '策略': self.strategy
+                })
+                pbar.update(1)
+        
+        if self.verbose:
+            pbar.close()
+        
+        return self.history
+    
+    def run(self):
+        """运行优化"""
+        history = self.iterator()
+        
+        if self.plot:
+            self._plot_results(history)
+        
+        return self.best_solution, history
+    
+    def _plot_results(self, history):
+        """绘制结果"""
+        plt.figure(figsize=(10, 6))
+        plt.plot(history['best_fitness'], 'b-', label='最优适应度')
+        plt.plot(history['avg_fitness'], 'r--', label='平均适应度')
+        plt.xlabel('迭代次数', size=12)
+        plt.ylabel('适应度值', size=12)
+        plt.title(f'ACO优化过程 ({self.strategy}) - 适应度变化', fontsize=14)
         plt.legend()
-        
-        # 3D曲面图
-        ax = plt.subplot(1, 2, 2, projection='3d')
-        ax.plot_surface(X, Y, Z, cmap='viridis', alpha=0.8)
-        ax.scatter(best_solution[0], best_solution[1], best_value, 
-                  color='red', s=100, label='最优解')
-        ax.set_xlabel('x1')
-        ax.set_ylabel('x2')
-        ax.set_zlabel('f(x)')
-        ax.set_title('目标函数3D视图')
-        plt.legend()
-        
+        plt.grid(True)
         plt.tight_layout()
         plt.show()
 
 
+def aco(func, bounds, m=50, maxiter=100, alpha=1, beta=5,
+        rho=0.1, Q=100, strategy='AS', P0=0.2, step=0.1,
+        init_positions=None, verbose=True, plot=True):
+    """
+    连续空间蚁群算法
+    
+    参数:
+        func: 目标函数
+        bounds: 边界列表 [(min, max), ...]
+        m: 蚂蚁数量 (默认50)
+        maxiter: 最大迭代次数 (默认100)
+        alpha: 信息素重要程度 (默认1)
+        beta: 启发式因子重要程度 (默认5)
+        rho: 信息素蒸发系数 (默认0.1)
+        Q: 信息素增量系数 (默认100)
+        strategy: 算法策略 ('AS', 'EAS', 'MMAS', 'AAS') (默认'AS')
+        P0: 局部搜索概率阈值 (默认0.2)
+        step: 局部搜索步长 (默认0.1)
+        init_positions: 初始解列表 (可选)
+        verbose: 是否显示进度条 (默认True)
+        plot: 是否绘制结果 (默认True)
+    
+    返回:
+        best_solution: 最优解
+        history: 包含'best_fitness'和'avg_fitness'的历史记录
+    """
+    optimizer = ACO_Continuous(
+        func=func,
+        bounds=bounds,
+        m=m,
+        maxiter=maxiter,
+        alpha=alpha,
+        beta=beta,
+        rho=rho,
+        Q=Q,
+        strategy=strategy,
+        P0=P0,
+        step=step,
+        init_positions=init_positions,
+        verbose=verbose,
+        plot=plot
+    )
+    return optimizer.run()
+
+
+def main():
+    """测试函数"""
+    def sphere(X):
+        return np.sum(X**2)
+    
+    # 测试所有策略
+    strategies = ['AS', 'EAS', 'MMAS', 'AAS']
+    
+    print("连续空间ACO测试:")
+    for strategy in strategies:
+        print(f"\n策略: {strategy}")
+        best_solution, history = aco(
+            func=sphere,
+            bounds=[(-5.12, 5.12), (-5.12, 5.12)],
+            m=30,
+            maxiter=100,
+            strategy=strategy,
+            verbose=True
+        )
+        print("最优解:", best_solution)
+        print("最优值:", history['best_fitness'][-1])
+
 if __name__ == "__main__":
-    # 运行测试
-    test_aco_continuous()
+    main()
