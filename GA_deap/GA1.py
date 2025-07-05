@@ -1,39 +1,42 @@
 import random
+import math
 import numpy as np
-from deap import base, creator, tools, algorithms
+from deap import base, creator, tools
 import matplotlib.pyplot as plt
-from test_function import Rastrigin
+from myalgorithm import eaSimpleWithElitism
 
-plt.rcParams['font.sans-serif'] = ['SimHei']  # 设置字体为黑体
-plt.rcParams['axes.unicode_minus'] = False  # 正确显示负号
+plt.rcParams['font.sans-serif'] = ['SimHei']
+plt.rcParams['axes.unicode_minus'] = False
 
-# 设置随机种子
-random.seed(42)
-np.random.seed(42)
+# 问题定义：求解Rastrigin函数最小值
+def rastrigin(individual):
+    """测试函数"""
+    n = len(individual)
+    return (10 * n + sum(x**2 - 10 * np.cos(2 * math.pi * x) for x in individual),)  # 修正括号问题
 
 def setup_rastrigin_optimization(n_dim=10, bounds=(-5.12, 5.12)):
     """设置Rastrigin函数优化的遗传算法"""
+    # 检查并删除已存在的类
+    if "FitnessMin" in creator.__dict__:
+        del creator.FitnessMin
+    if "Individual" in creator.__dict__:
+        del creator.Individual
     
     # 创建适应度类和个体类
     creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
     creator.create("Individual", list, fitness=creator.FitnessMin)
     
     toolbox = base.Toolbox()
-    
-    # 定义属性生成函数
     toolbox.register("attr_float", random.uniform, bounds[0], bounds[1])
-    
-    # 定义个体和种群生成函数
     toolbox.register("individual", tools.initRepeat, creator.Individual, 
                     toolbox.attr_float, n=n_dim)
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
     
-    # 定义评估函数
     def evaluate(individual):
-        return Rastrigin(np.array(individual)),
+        return rastrigin(individual)
     
     toolbox.register("evaluate", evaluate)
-    toolbox.register("mate", tools.cxBlend, alpha=0.5)  # 混合交叉
+    toolbox.register("mate", tools.cxBlend, alpha=0.5)
     toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=0.5, indpb=0.2)
     toolbox.register("select", tools.selTournament, tournsize=3)
     
@@ -41,34 +44,34 @@ def setup_rastrigin_optimization(n_dim=10, bounds=(-5.12, 5.12)):
 
 def optimize_rastrigin():
     """优化10维Rastrigin函数"""
+    # 参数设置
     n_dim = 10
     bounds = (-5.12, 5.12)
     pop_size = 50
     n_gen = 1000
     cxpb = 0.6
     mutpb = 0.2
+    hof_size = 5
     
+    # 初始化
     toolbox = setup_rastrigin_optimization(n_dim, bounds)
-    
-    # 创建初始种群
     pop = toolbox.population(n=pop_size)
+    hof = tools.HallOfFame(hof_size)
     
-    # 注册统计信息
+    # 统计设置
     stats = tools.Statistics(lambda ind: ind.fitness.values)
     stats.register("avg", np.mean)
     stats.register("min", np.min)
     stats.register("max", np.max)
     
     # 运行算法
-    result, logbook = algorithms.eaSimple(pop, toolbox, cxpb=cxpb, mutpb=mutpb,
-                                         ngen=n_gen, stats=stats, verbose=True)
+    pop, logbook = eaSimpleWithElitism(pop, toolbox, cxpb, mutpb, n_gen, 
+                                     stats=stats, halloffame=hof, verbose=True)
     
-    # 获取最佳个体
-    best_individual = tools.selBest(result, k=1)[0]
-    best_fitness = best_individual.fitness.values[0]
-    
-    print(f"\n最佳解: {best_individual}")
-    print(f"最佳适应度: {best_fitness}")
+    # 结果输出
+    best_ind = hof[0]
+    print(f"\n最佳解: {best_ind}")
+    print(f"最佳适应度: {best_ind.fitness.values[0]}")
     
     # 绘制进化过程
     gen = logbook.select("gen")
@@ -84,4 +87,6 @@ def optimize_rastrigin():
     plt.show()
 
 if __name__ == "__main__":
+    random.seed(42)
+    np.random.seed(42)
     optimize_rastrigin()

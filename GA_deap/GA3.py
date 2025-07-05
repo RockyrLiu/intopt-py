@@ -9,7 +9,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 import math
-from utils import elitism
+
+from myalgorithm import eaSimpleWithElitism
 
 # 问题常量:
 DIMENSIONS = 2  # 维度数量
@@ -117,7 +118,7 @@ def main():
     hof = tools.HallOfFame(HALL_OF_FAME_SIZE)
 
     # 执行带精英保留的遗传算法流程:
-    population, logbook = elitism.eaSimpleWithElitism(population, toolbox, cxpb=P_CROSSOVER, mutpb=P_MUTATION,
+    population, logbook = eaSimpleWithElitism(population, toolbox, cxpb=P_CROSSOVER, mutpb=P_MUTATION,
                                               ngen=MAX_GENERATIONS, stats=stats, halloffame=hof, verbose=True)
 
     # 打印找到的最佳解信息:

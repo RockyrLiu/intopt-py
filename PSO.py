@@ -651,8 +651,8 @@ def elite_pso(func, bounds, n_runs=10, popsize=30, maxiter=100,
     参数:
         func: 目标函数
         bounds: 边界列表 [(min, max), ...]
-        n_runs: 独立运行次数 (默认10)
-        popsize: 粒子数量 (默认30)
+        n_runs: 独立运行次数 (默认10), 同时也是高层粒子数
+        popsize: 粒子数量 (默认30), 仅用于底层粒子数
         maxiter: 最大迭代次数 (默认100)
         w: 初始惯性权重 (默认0.8)
         w_min: 最小惯性权重 (默认0.4)
