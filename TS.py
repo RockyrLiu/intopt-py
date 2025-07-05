@@ -2,250 +2,446 @@ import numpy as np
 import matplotlib.pyplot as plt
 import random
 import math
-from typing import List, Tuple
+from tqdm import tqdm
+from tsp import problem1
 
 plt.rcParams['font.sans-serif'] = ['SimHei']  # 设置字体为黑体
 plt.rcParams['axes.unicode_minus'] = False  # 正确显示负号
 
-def plot_function():
-    """绘制函数 f(x,y) = (cos(x^2+y^2)-0.1)/(1+0.3*(x^2+y^2)^2)+3 的3D图形"""
-    x = np.arange(-5, 5.01, 0.01)
-    y = np.arange(-5, 5.01, 0.01)
-    X, Y = np.meshgrid(x, y)
-    Z = (np.cos(X**2 + Y**2) - 0.1) / (1 + 0.3*(X**2 + Y**2)**2) + 3
+class TS:
+    """禁忌搜索算法基类"""
+    def __init__(self, func, tabu_length = 10, candidate_size = 50, 
+                 max_iter = 500, init_positions = None,
+                 verbose = True):
+        """
+        参数说明:
+        func: 目标函数
+        tabu_length: 禁忌长度
+        candidate_size: 候选解数量
+        max_iter: 最大迭代次数
+        init_positions: 初始解列表(可选)
+        verbose: 是否显示进度条
+        """
+        self.function = func
+        self.tabu_length = tabu_length
+        self.candidate_size = candidate_size
+        self.max_iter = max_iter
+        self.init_positions = init_positions
+        self.verbose = verbose
+        
+        # 历史记录
+        self.history = {
+            'best_fitness': [],
+            'current_fitness': [],
+            'best_solution': []
+        }
     
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.plot_surface(X, Y, Z, cmap='viridis')
-    ax.set_xlabel('x')
-    ax.set_ylabel('y')
-    plt.show()
+    def init_solution(self):
+        """初始化解(由子类实现)"""
+        raise NotImplementedError("子类必须实现init_solution方法")
 
-def func1(D: np.ndarray, s: List[int]) -> float:
-    """计算TSP路径长度"""
-    n = len(s)
-    DistanV = 0.0
-    for i in range(n-1):
-        DistanV += D[s[i], s[i+1]]
-    DistanV += D[s[n-1], s[0]]
-    return DistanV
+    def generate_candidates(self, current_solution):
+        """生成候选解(由子类实现)"""
+        raise NotImplementedError("子类必须实现generate_candidates方法")
+    
+    def update_tabu(self, move):
+        """更新禁忌表(由子类实现)"""
+        raise NotImplementedError("子类必须实现update_tabu方法")
+    
+    def is_tabu(self, move):
+        """检查是否在禁忌表中(由子类实现)"""
+        raise NotImplementedError("子类必须实现is_tabu方法")
+    
+    def _record_history(self, current_energy, best_energy, best_solution):
+        """记录历史数据"""
+        self.history['best_fitness'].append(float(best_energy))
+        self.history['current_fitness'].append(float(current_energy))
+        self.history['best_solution'].append(best_solution.copy())
+    
+    def run(self):
+        """优化迭代主函数"""
+        # 初始化当前解和最优解
+        current_solution = self.init_solution()
+        current_energy = self.function(current_solution)
+        best_solution = current_solution.copy()
+        best_energy = current_energy
+        
+        # 记录初始状态
+        self._record_history(current_energy, best_energy, best_solution)
+        
+        # 使用进度条
+        with tqdm(total=self.max_iter, desc="禁忌搜索进度", disable=not self.verbose) as pbar:
+            for _ in range(self.max_iter):
+                # 生成候选解
+                candidates = self.generate_candidates(current_solution)
+                
+                # 评估候选解
+                best_candidate = None
+                best_candidate_energy = float('inf')
+                
+                for candidate in candidates:
+                    candidate_energy = self.function(candidate['solution'])
+                    move = candidate['move']
+                    
+                    # 藐视准则: 如果候选解优于当前最优解，直接接受
+                    if candidate_energy < best_energy:
+                        best_candidate = candidate
+                        best_candidate_energy = candidate_energy
+                        break
+                    
+                    # 如果不是禁忌解且优于当前候选解
+                    if not self.is_tabu(move) and candidate_energy < best_candidate_energy:
+                        best_candidate = candidate
+                        best_candidate_energy = candidate_energy
+                
+                # 更新解和禁忌表
+                if best_candidate is not None:
+                    current_solution = best_candidate['solution']
+                    current_energy = best_candidate_energy
+                    self.update_tabu(best_candidate['move'])
+                    
+                    # 更新全局最优解
+                    if current_energy < best_energy:
+                        best_solution = current_solution.copy()
+                        best_energy = current_energy
+                
+                # 记录当前状态
+                self._record_history(current_energy, best_energy, best_solution)
+                
+                # 更新进度条
+                pbar.update(1)
+                pbar.set_postfix({
+                    "最优值": f"{float(best_energy):.4f}",
+                    "当前值": f"{float(current_energy):.4f}"
+                })
+        
+        return best_solution, best_energy
 
-def func2(x: List[float]) -> float:
-    """计算函数值 f(x) = (cos(x1^2+x2^2)-0.1)/(1+0.3*(x1^2+x2^2)^2)+3"""
-    x1, x2 = x
-    numerator = math.cos(x1**2 + x2**2) - 0.1
-    denominator = 1 + 0.3*(x1**2 + x2**2)**2
-    return numerator / denominator + 3
-
-def TSP_TS():
-    """禁忌搜索算法解决TSP问题"""
-    # 城市坐标数据
-    C = np.array([
-        [1304, 2312], [3639, 1315], [4177, 2244], [3712, 1399],
-        [3488, 1535], [3326, 1556], [3238, 1229], [4196, 1044],
-        [4312, 790], [4386, 570], [3007, 1970], [2562, 1756],
-        [2788, 1491], [2381, 1676], [1332, 695], [3715, 1678],
-        [3918, 2179], [4061, 2370], [3780, 2212], [3676, 2578],
-        [4029, 2838], [4263, 2931], [3429, 1908], [3507, 2376],
-        [3394, 2643], [3439, 3201], [2935, 3240], [3140, 3550],
-        [2545, 2357], [2778, 2826], [2370, 2975]
-    ])
-    
-    N = C.shape[0]  # 城市数量
-    D = np.zeros((N, N))  # 距离矩阵
-    
-    # 计算距离矩阵
-    for i in range(N):
-        for j in range(N):
-            D[i, j] = np.sqrt((C[i, 0] - C[j, 0])**2 + (C[i, 1] - C[j, 1])**2)
-    
-    Tabu = np.zeros((N, N))  # 禁忌表
-    TabuL = round(np.sqrt(N*(N-1)/2))  # 禁忌长度
-    Ca = 200  # 候选解数量
-    BestCaNum = Ca // 2  # 最优候选解数量 (保留前 Ca/2 个最好候选解)
-    Gmax = 500  # 最大迭代次数
-    
-    # 初始化
-    S0 = list(range(N)) # 当前解
-    random.shuffle(S0)
-    bestsofar = S0.copy()
-    BestL = float('inf') # 当前最优路径长度
-    ArrBestL = np.zeros(Gmax) # 记录每次迭代的最优值
-    
-    plt.figure(figsize=(12, 6))
-    p = 0
-    
-    while p < Gmax:
-        # 生成候选交换城市对
-        A = []
-        while len(A) < Ca:
-            M = [random.randint(0, N-1), random.randint(0, N-1)]
-            if M[0] != M[1]:
-                pair = (max(M), min(M))
-                if pair not in A:
-                    A.append(pair)
+class TSP_TS(TS):
+    """TSP问题的禁忌搜索算法"""
+    def __init__(self, tsp_problem, tabu_length=None, candidate_size=50, 
+                 max_iter=500, init_positions = None,
+                 verbose=True):
+        """
+        参数:
+        tsp_problem: TSP问题实例
+        tabu_length: 禁忌长度(默认为sqrt(n*(n-1)/2))
+        candidate_size: 候选解数量
+        max_iter: 最大迭代次数
+        init_positions: 初始路径列表(可选)
+        verbose: 是否显示进度条
+        """
+        self.tsp_problem = tsp_problem
+        self.N = tsp_problem.N  # 城市数量
         
-        # 生成候选解
-        CaNum = np.zeros((Ca, N), dtype=int)
-        F = np.zeros(Ca)
-        BestCa = np.full((BestCaNum, 4), float('inf')) # 最优候选解信息
+        # 计算默认禁忌长度
+        if tabu_length is None:
+            tabu_length = round(np.sqrt(self.N*(self.N-1)/2))
         
-        for i in range(Ca):
-            new_route = S0.copy()
-            idx1, idx2 = A[i]
-            new_route[idx1], new_route[idx2] = new_route[idx2], new_route[idx1]
-            CaNum[i] = new_route
-            F[i] = func1(D, new_route)
-            
-            # 更新最优候选解
-            if i < BestCaNum:
-                BestCa[i] = [i, F[i], S0[idx1], S0[idx2]]
-            else:
-                max_idx = np.argmax(BestCa[:, 1])
-                if F[i] < BestCa[max_idx, 1]:
-                    BestCa[max_idx] = [i, F[i], S0[idx1], S0[idx2]]
+        # 定义目标函数
+        def obj_func(path):
+            return tsp_problem.calculate_path_length(path)
         
-        # 排序候选解
-        sorted_idx = np.argsort(BestCa[:, 1])
-        BestCa = BestCa[sorted_idx]
+        # TS基类初始化
+        super().__init__(
+            func=obj_func,
+            tabu_length=tabu_length,
+            candidate_size=candidate_size,
+            max_iter=max_iter,
+            init_positions=init_positions,
+            verbose=verbose
+        )
         
-        # 藐视准则和禁忌准则
-        if BestCa[0, 1] < BestL:
-            BestL = BestCa[0, 1]
-            S0 = list(CaNum[int(BestCa[0, 0])])
-            bestsofar = S0.copy()
-            Tabu = np.maximum(Tabu - 1, 0) # Tabu中所有值减 1
-            Tabu[int(BestCa[0, 2]), int(BestCa[0, 3])] = TabuL
+        # 初始化禁忌表
+        self.tabu_table = np.zeros((self.N, self.N))
+    
+    def init_solution(self):
+        """生成初始路径"""
+        if self.init_positions is not None and len(self.init_positions) > 0:
+            # 使用提供的初始解(随机选择一个)
+            return random.choice(self.init_positions).copy()
         else:
-            for i in range(BestCaNum):
-                city1 = int(BestCa[i, 2])
-                city2 = int(BestCa[i, 3])
-                if Tabu[city1, city2] == 0:
-                    S0 = list(CaNum[int(BestCa[i, 0])])
-                    Tabu = np.maximum(Tabu - 1, 0)
-                    Tabu[city1, city2] = TabuL
-                    break
+            # 随机生成初始解
+            return list(np.random.permutation(self.N))
+    
+    def generate_candidates(self, current_solution):
+        """生成候选解(交换两个城市)"""
+        candidates = []
+        generated_pairs = set()
         
-        ArrBestL[p] = BestL
+        while len(candidates) < self.candidate_size:
+            # 随机选择两个不同的城市
+            i, j = random.sample(range(self.N), 2)
+            i, j = min(i, j), max(i, j)
+            
+            # 确保不重复生成相同的交换对
+            if (i, j) in generated_pairs:
+                continue
+            generated_pairs.add((i, j))
+            
+            # 生成新解
+            new_solution = current_solution.copy()
+            new_solution[i], new_solution[j] = new_solution[j], new_solution[i]
+            
+            candidates.append({
+                'solution': new_solution,
+                'move': (current_solution[i], current_solution[j])
+            })
         
-        # 绘制当前最优路径
-        plt.clf()
+        return candidates
+    
+    def update_tabu(self, move):
+        """更新禁忌表"""
+        # 禁忌表中所有值减1
+        self.tabu_table = np.maximum(self.tabu_table - 1, 0)
+        # 添加新禁忌项
+        city1, city2 = move
+        self.tabu_table[city1, city2] = self.tabu_length
+        self.tabu_table[city2, city1] = self.tabu_length
+    
+    def is_tabu(self, move):
+        """检查是否在禁忌表中"""
+        city1, city2 = move
+        return self.tabu_table[city1, city2] > 0
+
+class Continuous_TS(TS):
+    """连续优化问题的TS实现"""
+    def __init__(self, func, bounds, tabu_length=10, candidate_size=50, 
+                 max_iter=500, neighbor_scale=0.1, 
+                 init_positions = None,
+                 verbose=True):
+        """
+        参数:
+        func: 目标函数
+        bounds: 变量边界列表
+        tabu_length: 禁忌长度
+        candidate_size: 候选解数量
+        max_iter: 最大迭代次数
+        neighbor_scale: 邻域搜索范围比例
+        init_positions: 初始解列表(可选)
+        verbose: 是否显示进度条
+        """
+        super().__init__(
+            func=func,
+            tabu_length=tabu_length,
+            candidate_size=candidate_size,
+            max_iter=max_iter,
+            init_positions=init_positions,
+            verbose=verbose
+        )
+        
+        self.bounds = bounds
+        self.dim = len(bounds)
+        self.neighbor_scale = neighbor_scale
+        self.lower_bound = np.array([b[0] for b in bounds])
+        self.upper_bound = np.array([b[1] for b in bounds])
+        
+        # 禁忌表(存储最近访问的解)
+        self.tabu_list = []
+    
+    def init_solution(self):
+        """初始化解"""
+        if self.init_positions is not None and len(self.init_positions) > 0:
+            # 使用提供的初始解(随机选择一个)
+            solution = np.array(random.choice(self.init_positions))
+            # 确保解在边界内
+            return np.clip(solution, self.lower_bound, self.upper_bound)
+        else:
+            # 随机生成初始解
+            solution = np.zeros(self.dim)
+            for d in range(self.dim):
+                solution[d] = np.random.uniform(self.bounds[d][0], self.bounds[d][1])
+            return solution
+    
+    def generate_candidates(self, current_solution):
+        """生成候选解"""
+        candidates = []
+        for _ in range(self.candidate_size):
+            # 在邻域内随机生成新解
+            new_solution = current_solution.copy()
+            for d in range(self.dim):
+                delta = (self.bounds[d][1] - self.bounds[d][0]) * self.neighbor_scale
+                new_solution[d] += np.random.uniform(-delta, delta)
+                # 确保解在边界内
+                new_solution[d] = np.clip(new_solution[d], self.bounds[d][0], self.bounds[d][1])
+            
+            # 计算移动量(用于禁忌检查)
+            move = new_solution - current_solution
+            
+            candidates.append({
+                'solution': new_solution,
+                'move': move
+            })
+        
+        return candidates
+    
+    def update_tabu(self, move):
+        """更新禁忌表"""
+        self.tabu_list.append(move)
+        if len(self.tabu_list) > self.tabu_length:
+            self.tabu_list.pop(0)
+    
+    def is_tabu(self, move):
+        """检查是否在禁忌表中"""
+        for tabu_move in self.tabu_list:
+            if np.allclose(move, tabu_move, atol=1e-6):
+                return True
+        return False
+
+def ts(func, bounds=None, tabu_length=10, candidate_size=50, max_iter=500, 
+       neighbor_scale=0.1, init_positions=None, verbose=True, plot=True):
+    """
+    禁忌搜索算法(连续优化问题)
+
+    参数:
+        func: 目标函数
+        bounds: 变量边界列表 [(min, max), ...]
+        tabu_length: 禁忌长度 (默认10)
+        candidate_size: 候选解数量 (默认50)
+        max_iter: 最大迭代次数 (默认500)
+        neighbor_scale: 邻域搜索范围比例 (默认0.1)
+        init_positions: 初始解列表(可选)
+        verbose: 是否显示进度条 (默认True)
+        plot: 是否绘制结果 (默认True)
+    
+    返回:
+        best_solution: 最优解
+        history: 历史记录
+    """
+    optimizer = Continuous_TS(
+        func=func,
+        bounds=bounds,
+        tabu_length=tabu_length,
+        candidate_size=candidate_size,
+        max_iter=max_iter,
+        neighbor_scale=neighbor_scale,
+        init_positions=init_positions,
+        verbose=verbose
+    )
+    
+    best_solution, best_energy = optimizer.run()
+    
+    if plot:
+        plt.figure(figsize=(12, 5))
+        
         plt.subplot(1, 2, 1)
-        x_coords = [C[city, 0] for city in bestsofar] + [C[bestsofar[0], 0]]
-        y_coords = [C[city, 1] for city in bestsofar] + [C[bestsofar[0], 1]]
-        plt.plot(x_coords, y_coords, 'bo-')
-        plt.title(f'优化最短距离: {BestL:.2f}')
-        
-        # 绘制适应度曲线
-        plt.subplot(1, 2, 2)
-        plt.plot(ArrBestL[:p+1])
+        plt.plot(optimizer.history['best_fitness'], 'b-', label='最优适应度')
+        plt.plot(optimizer.history['current_fitness'], 'r--', alpha=0.3, label='当前适应度')
+        plt.title('禁忌搜索收敛曲线')
         plt.xlabel('迭代次数')
         plt.ylabel('目标函数值')
-        plt.title('适应度进化曲线')
-        plt.pause(0.005)
+        plt.legend()
+        plt.grid(True)
         
-        p += 1
+        plt.subplot(1, 2, 2)
+        plt.plot(optimizer.history['best_fitness'], 'b-', label='最优适应度')
+        plt.title('适应度变化曲线')
+        plt.xlabel('迭代次数')
+        plt.ylabel('目标函数值')
+        plt.legend()
+        plt.grid(True)
+        
+        plt.tight_layout()
+        plt.show()
     
-    plt.show()
-    return bestsofar, BestL
+    return best_solution, optimizer.history
 
-# 标准禁忌算法在处理连续问题时效果欠佳
-def Continuous_TS():
-    """禁忌搜索算法求函数极值"""
-    xu = 5.0  # 上界
-    xl = -5.0  # 下界
-    L = random.randint(5, 11)  # 禁忌长度
-    Ca = 5  # 邻域解个数
-    Gmax = 200  # 最大迭代次数
-    w = 1.0  # 自适应权重系数
-    tabu = []  # 禁忌表
+def ts_tsp(tsp_problem, tabu_length=None, candidate_size=50, max_iter=500, 
+           init_positions=None, verbose=True, plot=True):
+    """
+    禁忌搜索接口(TSP问题)
     
-    # 初始解
-    x0 = [random.uniform(xl, xu) for _ in range(2)]
-    bestsofar = {'key': x0, 'value': func2(x0)}
-    xnow = [{'key': x0, 'value': func2(x0)}]
-    trace = np.zeros(Gmax+1)  # 增加一个位置防止索引越界
+    参数:
+        tsp_problem: TSP问题实例
+        tabu_length: 禁忌长度 (默认sqrt(n*(n-1)/2))
+        candidate_size: 候选解数量 (默认50)
+        max_iter: 最大迭代次数 (默认500)
+        init_positions: 初始路径列表(可选)
+        verbose: 是否显示进度条 (默认True)
+        plot: 是否绘制结果 (默认True)
     
-    g = 0
-    while g < Gmax:
-        x_near = []
-        w *= 0.998
-        
-        # 生成邻域解
-        for i in range(Ca):
-            x_temp = xnow[g]['key']
-            # 生成新解并处理边界
-            x1 = x_temp[0] + (2 * random.random() - 1) * w * (xu - xl)
-            x1 = max(min(x1, xu), xl)
-            x2 = x_temp[1] + (2 * random.random() - 1) * w * (xu - xl)
-            x2 = max(min(x2, xu), xl)
-            x_near.append([x1, x2])
-        
-        # 计算邻域解的函数值
-        fitvalue_near = [func2(point) for point in x_near]
-        temp = np.argmax(fitvalue_near)
-        candidate = {'key': x_near[temp], 'value': fitvalue_near[temp]}
-        
-        # 评价函数差
-        delta1 = candidate['value'] - xnow[g]['value']
-        delta2 = candidate['value'] - bestsofar['value']
-        
-        if delta1 <= 0:  # 候选解没有改进
-            xnow.append({'key': candidate['key'], 'value': func2(candidate['key'])})
-            tabu.append(candidate['key'])
-            if len(tabu) > L:
-                tabu.pop(0)
-            trace[g] = bestsofar['value']
-            g += 1
-        else:
-            if delta2 > 0:  # 候选解优于当前最优解
-                xnow.append({'key': candidate['key'], 'value': func2(candidate['key'])})
-                tabu.append(candidate['key'])
-                if len(tabu) > L:
-                    tabu.pop(0)
-                bestsofar = {'key': candidate['key'], 'value': candidate['value']}
-                trace[g] = bestsofar['value']
-                g += 1
-            else:  # 候选解优于当前解但不如最优解
-                in_tabu = any(np.allclose(candidate['key'], t) for t in tabu)
-                if not in_tabu:
-                    xnow.append({'key': candidate['key'], 'value': func2(candidate['key'])})
-                    tabu.append(xnow[g]['key'])
-                    if len(tabu) > L:
-                        tabu.pop(0)
-                    trace[g] = bestsofar['value']
-                    g += 1
-                else:
-                    trace[g] = bestsofar['value']
-                    g += 1
+    返回:
+        最优路径, 路径长度, 历史记录
+    """
+    optimizer = TSP_TS(
+        tsp_problem=tsp_problem,
+        tabu_length=tabu_length,
+        candidate_size=candidate_size,
+        max_iter=max_iter,
+        init_positions=init_positions,
+        verbose=verbose
+    )
     
-    # 绘制结果
-    plt.figure()
-    plt.plot(trace[:g])
-    plt.xlabel('迭代次数')
-    plt.ylabel('目标函数值')
-    plt.title('搜索过程最优值曲线')
-    plt.show()
+    best_path, best_length = optimizer.run()
     
-    return bestsofar
+    if plot:
+        plt.figure(figsize=(12, 5))
+        
+        plt.subplot(1, 2, 1)
+        plt.plot(optimizer.history['best_fitness'], 'b-', label='最优路径长度')
+        plt.plot(optimizer.history['current_fitness'], 'r--', alpha=0.3, label='当前路径长度')
+        plt.title('禁忌搜索收敛曲线')
+        plt.xlabel('迭代次数')
+        plt.ylabel('路径长度')
+        plt.legend()
+        plt.grid(True)
+        
+        plt.subplot(1, 2, 2)
+        plt.plot(optimizer.history['best_fitness'], 'b-', label='最优路径长度')
+        plt.title('路径长度变化曲线')
+        plt.xlabel('迭代次数')
+        plt.ylabel('路径长度')
+        plt.legend()
+        plt.grid(True)
+        
+        plt.tight_layout()
+        plt.show()
+        
+        # 绘制最优路径
+        tsp_problem.plot_solution(best_path, best_length)
+    
+    return best_path, best_length, optimizer.history
 
-# 主程序
+def main1():
+    # 示例1: 连续优化问题
+    def test_func(x):
+        x1, x2 = x
+        numerator = math.cos(x1**2 + x2**2) - 0.1
+        denominator = 1 + 0.3*(x1**2 + x2**2)**2
+        return numerator / denominator + 3
+    
+    # 自定义初始解
+    custom_init = [
+        [1.0, 1.0],
+        [-2.0, 2.0],
+        [3.0, -3.0]
+    ]
+    
+    best_solution, history = ts(
+        func=test_func,
+        bounds=[(-5, 5), (-5, 5)],
+        tabu_length=10,
+        candidate_size=50,
+        max_iter=200,
+        neighbor_scale=0.1,
+        init_positions=custom_init,
+        verbose=True
+    )
+    
+    print(f"最优解: {best_solution}")
+    print(f"最优值: {history['best_fitness'][-1]}")
+
+def main2(): 
+    # 示例2: TSP问题
+    best_path, best_length, history = ts_tsp(
+        tsp_problem=problem1,
+        tabu_length=None,
+        candidate_size=150,
+        max_iter=3000,
+        init_positions=None,
+        verbose=True,
+        plot=True
+    )
+
 if __name__ == "__main__":
-    # 选择要运行的功能
-    print("1. 绘制函数图像")
-    print("2. TSP禁忌搜索")
-    print("3. 函数极值搜索")
-    
-    choice = input("请选择要运行的程序 (1-3): ")
-    
-    if choice == '1':
-        plot_function()
-    elif choice == '2':
-        best_route, min_distance = TSP_TS()
-        print(f"最优路径: {best_route}")
-        print(f"最短距离: {min_distance:.2f}")
-    elif choice == '3':
-        result = Continuous_TS()
-        print(f"找到最优解: x = {result['key']}, f(x) = {result['value']}")
-    else:
-        print("无效选择")
+    main1()
