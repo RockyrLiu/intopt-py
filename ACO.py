@@ -1,8 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-from tsp import problem1
 from SA import TSP_SA  
+from test_function import create_tsp_problem1, create_tsp_problem2
 
 plt.rcParams['font.sans-serif'] = ['SimHei']  # 设置字体为黑体
 plt.rcParams['axes.unicode_minus'] = False  # 正确显示负号
@@ -432,6 +432,7 @@ def acosa_tsp(tsp_problem, aco_params=None, sa_params=None, plot=True):
     
     return best_path, best_length
 
+problem1 = create_tsp_problem1()
 
 def main():
     """测试函数"""

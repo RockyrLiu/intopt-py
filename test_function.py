@@ -1,7 +1,6 @@
-import math
 import numpy as np
 import matplotlib.pyplot as plt
-from problem import TSPProblem, KnapsackProblem  # 导入problem.py中的类
+from problem import TSPProblem, KnapsackProblem 
 
 def func1(X):
     """目标函数"""
@@ -61,7 +60,6 @@ def Square(x):
     """平方和测试函数"""
     return np.sum(x**2)
 
-# 使用 problem.py 中的 TSPProblem 类替代原来的 TSPProblem1 和 TSPProblem2
 def create_tsp_problem1():
     """创建中国31个省会城市TSP问题"""
     coordinates = np.array([
@@ -75,7 +73,7 @@ def create_tsp_problem1():
     ])
     return TSPProblem(coordinates)
 
-def create_tsp_problem2(data_file="data/tsp2_data.txt"):
+def create_tsp_problem2(data_file=r"data/tsp2_data.txt"):
     """创建TSP2问题，使用Haversine距离公式"""
     sj0 = np.loadtxt(data_file)
     x = sj0[:, 0:8:2].flatten()

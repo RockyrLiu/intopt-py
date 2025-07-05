@@ -180,7 +180,7 @@ def wrapper_black_box(black_box_func):
 class TSP_SA(SA):
     """TSP问题的模拟退火算法"""
     def __init__(self, tsp_problem, initial_temp=1000, final_temp=1, 
-                 cooling_rate=0.99, iter_per_temp=100, verbose=True):
+                 cooling_rate=0.99, iter_per_temp=100, init_positions=None, verbose=True):
         """
         参数:
         tsp_problem: TSP问题实例
@@ -188,6 +188,7 @@ class TSP_SA(SA):
         final_temp: 终止温度
         cooling_rate: 降温系数
         iter_per_temp: 每个温度下的迭代次数
+        init_positions: 初始路径列表（可选），格式为 [path1, path2, ...]，其中 path 是城市索引的排列
         verbose: 是否显示进度条
         """
         self.tsp_problem = tsp_problem
@@ -205,15 +206,21 @@ class TSP_SA(SA):
             final_temp=final_temp,
             cooling_rate=cooling_rate,
             iter_per_temp=iter_per_temp,
+            init_positions=init_positions,
             verbose=verbose
         )
     
     def init_solution(self):
-        """生成初始路径(随机排列)"""
-        return list(np.random.permutation(self.N))
+        """生成初始路径（随机排列或使用提供的初始解）"""
+        if self.init_positions is not None and len(self.init_positions) > 0:
+            # 直接使用第一个初始路径
+            return list(self.init_positions)  # 确保返回列表形式
+        else:
+            # 随机生成初始路径
+            return list(np.random.permutation(self.N))
     
     def generate_neighbor(self, path):
-        """生成邻域解(使用2-opt方法)"""
+        """生成邻域解（使用2-opt方法交换路径片段）"""
         # 确保选择两个不同的索引
         c1, c2 = 0, 0
         while c1 == c2:
@@ -285,7 +292,7 @@ def sa(func, bounds, initial_temp=100, final_temp=1e-3,
     return best_solution, optimizer.history
 
 def sa_tsp(tsp_problem, initial_temp=1000, final_temp=1, 
-              cooling_rate=0.99, iter_per_temp=100, verbose=True, plot=True):
+           cooling_rate=0.99, iter_per_temp=100, init_positions=None, verbose=True, plot=True):
     """
     模拟退火算法(TSP问题)
     参数:
@@ -294,6 +301,7 @@ def sa_tsp(tsp_problem, initial_temp=1000, final_temp=1,
         final_temp: 终止温度 (默认1)
         cooling_rate: 降温系数 (默认0.99)
         iter_per_temp: 每个温度下的迭代次数 (默认100)
+        init_positions: 初始路径列表(可选)
         verbose: 是否显示进度条 (默认True)
         plot: 是否绘制结果 (默认True)
     
@@ -307,6 +315,7 @@ def sa_tsp(tsp_problem, initial_temp=1000, final_temp=1,
         final_temp=final_temp,
         cooling_rate=cooling_rate,
         iter_per_temp=iter_per_temp,
+        init_positions=init_positions,
         verbose=verbose
     )
     
@@ -369,14 +378,38 @@ def main1():
     print("最优值:", history['best_fitness'][-1])
 
 def main2():
-    from tsp import problem1
+    from test_function import create_tsp_problem2
+    problem2 = create_tsp_problem2()
     # 求解TSP问题
+    positions = [np.int32(21), np.int32(27), np.int32(20), np.int32(93), np.int32(67), 
+                 np.int32(85), np.int32(81), np.int32(79), np.int32(42), np.int32(22), 
+                 np.int32(89), np.int32(45), np.int32(60), np.int32(58), np.int32(9), 
+                 np.int32(87), np.int32(26), np.int32(7), np.int32(41), np.int32(52), 
+                 np.int32(17), np.int32(80), np.int32(15), np.int32(11), np.int32(95), 
+                 np.int32(13), np.int32(35), np.int32(29), np.int32(53), np.int32(62), 
+                 np.int32(73), np.int32(14), np.int32(91), np.int32(98), np.int32(16), 
+                 np.int32(94), np.int32(88), np.int32(70), np.int32(46), np.int32(96), 
+                 np.int32(19), np.int32(77), np.int32(92), np.int32(100), np.int32(3), 
+                 np.int32(78), np.int32(31), np.int32(68), np.int32(66), np.int32(38), 
+                 np.int32(76), np.int32(34), np.int32(61), np.int32(0), np.int32(5), 
+                 np.int32(74), np.int32(63), np.int32(1), np.int32(64), np.int32(44), 
+                 np.int32(28), np.int32(24), np.int32(86), np.int32(83), np.int32(49), 
+                 np.int32(2), np.int32(33), np.int32(32), np.int32(65), np.int32(54), 
+                 np.int32(12), np.int32(4), np.int32(18), np.int32(84), np.int32(36), 
+                 np.int32(55), np.int32(51), np.int32(99), np.int32(37), np.int32(71), 
+                 np.int32(72), np.int32(75), np.int32(69), np.int32(47), np.int32(43), 
+                 np.int32(97), np.int32(59), np.int32(30), np.int32(10), np.int32(56), 
+                 np.int32(40), np.int32(25), np.int32(50), np.int32(8), np.int32(23), 
+                 np.int32(90), np.int32(39), np.int32(6), np.int32(48), np.int32(57), 
+                 np.int32(82)]
+    
     best_path, best_length, history = sa_tsp(
-        problem1,
+        problem2,
         initial_temp=1000,
         final_temp=1,
         cooling_rate=0.999,
         iter_per_temp=1000,
+        init_positions=positions,
         verbose=True
     )
     
@@ -384,4 +417,4 @@ def main2():
     print(f"最优路径: {best_path}")
 
 if __name__ == "__main__":
-    main1()
+    main2()
