@@ -1,5 +1,5 @@
 # 优化算法
-当前目录下是一些常见的优化算法，如模拟退火算法、遗传算法等。
+当前仓库下是一些常见的优化算法，如模拟退火算法、遗传算法等。
 
 ## 模拟退火算法, Simulated Annealing
 ### 基本理论
@@ -54,17 +54,20 @@
 3. 使用小生境与共享
 4. 自适应参数，这里给出一种Srinvivas提出的自适应遗传算法方法：
 
-\[ P_c = 
+$$
+P_c = 
 \begin{cases} 
 P_{c1} - \frac{(P_{c1} - P_{c2})(f' - f_{\text{avg}})}{f_{\text{max}} - f_{\text{avg}}}, & \text{if } f' \geq f_{\text{avg}} \\
 P_{c1}, & \text{if } f' < f_{\text{avg}}
-\end{cases} \]
-
-\[ P_m = 
+\end{cases} 
+$$
+$$
+P_m = 
 \begin{cases} 
 P_{m1} - \frac{(P_{m1} - P_{m2})(f_{\text{max}} - f)}{f_{\text{max}} - f_{\text{avg}}}, & \text{if } f \geq f_{\text{avg}} \\
 P_{m1}, & \text{if } f < f_{\text{avg}}
-\end{cases} \]
+\end{cases}
+$$
 
 其中，$f_{max}$为群体中最大的适应度；$f_{avg}$为每代群体的平均适应度值；$f$为要变异个体的适应度值；$f'$为待交叉个体中较大的适应度值；$P_{c1}=0.9,P_{c2}=0.6,P_{m1}=0.1,P_{m2}=0.001$。 
 
