@@ -1,5 +1,6 @@
 import numpy as np
 
+from intopt.operators.mutate import mutSwap
 from intopt.problems.base import Problem
 
 
@@ -33,4 +34,7 @@ class TSPProblem(Problem):
 
     def is_feasible(self, solution: np.ndarray) -> bool:
         return bool(len(solution) == self.n and len(set(solution)) == self.n)
+
+    def mutate(self, solution: np.ndarray) -> np.ndarray:
+        return mutSwap(solution)
 

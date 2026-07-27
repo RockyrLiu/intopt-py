@@ -24,3 +24,8 @@ class Problem(ABC):
     def is_feasible(self, solution: np.ndarray) -> bool:
         """检查解是否满足所有约束。"""
         ...
+
+    @abstractmethod
+    def mutate(self, solution: np.ndarray) -> np.ndarray:
+        """对 ``solution`` 施加变异，生成邻域解。"""
+        ...
