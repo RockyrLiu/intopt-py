@@ -17,7 +17,7 @@ def test_sa_continuous_returns_optimize_result():
     from intopt.algorithms.sa import SA
 
     problem = ContinuousProblem(func=_sphere, bounds=[(-5.0, 5.0), (-5.0, 5.0)])
-    sa = SA(problem)
+    sa = SA(problem, verbose=False)
     result = sa.run()
 
     assert isinstance(result, OptimizeResult)
@@ -33,7 +33,7 @@ def test_sa_sphere_2d_converges():
 
     problem = ContinuousProblem(func=_sphere, bounds=[(-5.0, 5.0), (-5.0, 5.0)])
     sa = SA(problem, initial_temp=100, final_temp=1e-3,
-            cooling_rate=0.99, iter_per_temp=100)
+            cooling_rate=0.99, iter_per_temp=100, verbose=False)
     result = sa.run()
 
     assert result.best_fitness < 0.1
@@ -44,7 +44,7 @@ def test_sa_rastrigin_10d_converges():
 
     problem = ContinuousProblem(func=_rastrigin, bounds=[(-5.12, 5.12)] * 10)
     sa = SA(problem, initial_temp=100, final_temp=1e-3,
-            cooling_rate=0.999, iter_per_temp=100)
+            cooling_rate=0.999, iter_per_temp=100, verbose=False)
     result = sa.run()
 
     assert result.best_fitness <= 1.0
@@ -55,7 +55,7 @@ def test_sa_tsp_path_is_valid_permutation():
 
     coords = np.array([[0, 0], [1, 0], [1, 1], [0, 1]], dtype=float)
     problem = TSPProblem(coords)
-    sa = SA(problem, initial_temp=100, iter_per_temp=10)
+    sa = SA(problem, initial_temp=100, iter_per_temp=10, verbose=False)
     result = sa.run()
 
     assert set(result.best_solution) == set(range(4))
@@ -73,7 +73,7 @@ def test_sa_tsp_data_improves():
 
     problem = TSPProblem(coords)
     sa = SA(problem, initial_temp=100, final_temp=1,
-            cooling_rate=0.9, iter_per_temp=10)
+            cooling_rate=0.9, iter_per_temp=10, verbose=False)
     result = sa.run()
 
     assert result.best_fitness <= result.history["best"][0]
