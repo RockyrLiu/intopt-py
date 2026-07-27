@@ -18,14 +18,11 @@ class OptimizeResult:
         最优适应度值（越小越好）。
     history:
         收敛历史字典。键由各算法自行定义，常用键包含 ``"best"``、``"avg"``。
-    n_iterations:
-        实际迭代次数。
     """
 
     best_solution: np.ndarray
     best_fitness: float
     history: dict = field(default_factory=lambda: {"best": [], "avg": []})
-    n_iterations: int = 0
 
 
 class Optimizer(ABC):
