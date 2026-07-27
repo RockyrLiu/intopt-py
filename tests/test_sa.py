@@ -29,7 +29,7 @@ def test_sa_continuous_returns_optimize_result():
 
 
 def test_sa_sphere_2d_converges():
-    from intopt.algorithms.sa import SA
+    from intopt.algorithms import SA
 
     problem = ContinuousProblem(func=_sphere, bounds=[(-5.0, 5.0), (-5.0, 5.0)])
     sa = SA(problem, initial_temp=100, final_temp=1e-3,
@@ -40,7 +40,7 @@ def test_sa_sphere_2d_converges():
 
 
 def test_sa_rastrigin_10d_converges():
-    from intopt.algorithms.sa import SA
+    from intopt.algorithms import SA
 
     problem = ContinuousProblem(func=_rastrigin, bounds=[(-5.12, 5.12)] * 10)
     sa = SA(problem, initial_temp=100, final_temp=1e-3,
@@ -51,7 +51,7 @@ def test_sa_rastrigin_10d_converges():
 
 
 def test_sa_tsp_path_is_valid_permutation():
-    from intopt.algorithms.sa import SA
+    from intopt.algorithms import SA
 
     coords = np.array([[0, 0], [1, 0], [1, 1], [0, 1]], dtype=float)
     problem = TSPProblem(coords)
@@ -63,7 +63,7 @@ def test_sa_tsp_path_is_valid_permutation():
 
 
 def test_sa_tsp_data_improves():
-    from intopt.algorithms.sa import SA
+    from intopt.algorithms import SA
 
     sj0 = np.loadtxt("tests/data/tsp2_data.txt")
     x = sj0[:, 0:8:2].flatten()
