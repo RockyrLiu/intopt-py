@@ -1,5 +1,7 @@
 import numpy as np
 
+from intopt.operators.utils import chaos_sequence
+
 
 def cxArithmetic(parent1: np.ndarray, parent2: np.ndarray):
     """算术交叉：每维独立加权平均，用于连续型。"""
@@ -112,4 +114,33 @@ def cxPartialyMatched(parent1: np.ndarray, parent2: np.ndarray):
         pos2 = int(np.where(c2 == p1[i])[0][0])
         c2[i], c2[pos2] = c2[pos2], c2[i]
 
+    return c1, c2
+
+
+def cxChaosArithmetic(parent1: np.ndarray, parent2: np.ndarray):
+    """混沌算术交叉：权重由 Logistic 序列生成，用于连续型。"""
+    alpha = chaos_sequence(len(parent1))
+    c1 = alpha * parent1 + (1 - alpha) * parent2
+    c2 = (1 - alpha) * parent1 + alpha * parent2
+    return c1, c2
+
+
+def cxChaosOrdered(parent1: np.ndarray, parent2: np.ndarray):
+    """混沌顺序交叉：切点由 Logistic 序列确定，用于排列型。"""
+    size = len(parent1)
+    p1 = parent1.astype(int)
+    p2 = parent2.astype(int)
+
+    ch = chaos_sequence(2)
+    cx1, cx2 = np.sort(np.clip(np.floor(ch * size).astype(int), 0, size - 1))
+    if cx1 == cx2:
+        cx2 = min(cx1 + 1, size - 1)
+
+    c1 = np.full(size, -1, dtype=int)
+    c2 = np.full(size, -1, dtype=int)
+    c1[cx1 : cx2 + 1] = p1[cx1 : cx2 + 1]
+    c2[cx1 : cx2 + 1] = p2[cx1 : cx2 + 1]
+
+    _fill_ox(c1, p2, cx1, cx2, size)
+    _fill_ox(c2, p1, cx1, cx2, size)
     return c1, c2

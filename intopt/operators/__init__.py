@@ -1,5 +1,7 @@
 from intopt.operators.crossover import (
     cxArithmetic,
+    cxChaosArithmetic,
+    cxChaosOrdered,
     cxOnePoint,
     cxOrdered,
     cxPartialyMatched,
@@ -13,11 +15,13 @@ from intopt.operators.initialize import (
     initCustom,
     initRandom,
 )
-from intopt.operators.mutate import mutFlip, mutGaussian, mutSwap
+from intopt.operators.mutate import mutChaosSwap, mutFlip, mutGaussian, mutSwap
 from intopt.operators.selection import selBest, selRoulette, selTournament
 
 __all__ = [
     "cxArithmetic",
+    "cxChaosArithmetic",
+    "cxChaosOrdered",
     "cxOnePoint",
     "cxOrdered",
     "cxPartialyMatched",
@@ -28,6 +32,7 @@ __all__ = [
     "initChaosPermutation",
     "initCustom",
     "initRandom",
+    "mutChaosSwap",
     "mutFlip",
     "mutGaussian",
     "mutSwap",
