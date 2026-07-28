@@ -23,6 +23,12 @@ class GA(Optimizer):
     - ``mutate(solution)`` — 变异操作。连续型用 `mutGaussian`_，
       排列型用 `mutSwap`_，二值型用 `mutFlip`_。
 
+    **精英/名人堂**：
+
+    每代结束后自动更新 ``self.elites``，保存迄今为止最优的
+    ``elitism_size`` 个解 ``(solution, fitness)``。
+    elitism_size=0 时仅跟踪最优解。
+
     Parameters
     ----------
     problem:
@@ -35,8 +41,8 @@ class GA(Optimizer):
         交叉概率，默认 0.8。
     mutation_rate:
         变异概率，默认 0.2。
-    elitism_ratio:
-        精英保留比例，默认 0 表示不保留精英。
+    elitism_size:
+        精英保留数量，默认 0。
     verbose:
         是否显示进度条，默认 True。
     """
@@ -48,7 +54,7 @@ class GA(Optimizer):
         generations: int = 100,
         crossover_rate: float = 0.8,
         mutation_rate: float = 0.2,
-        elitism_ratio: float = 0.0,
+        elitism_size: int = 0,
         verbose: bool = True,
     ):
         super().__init__(problem)
@@ -56,8 +62,8 @@ class GA(Optimizer):
         self.generations = int(generations)
         self.crossover_rate = float(crossover_rate)
         self.mutation_rate = float(mutation_rate)
-        self.elitism_ratio = float(elitism_ratio)
-        self.elite_size = int(elitism_ratio * pop_size)
+        self.elitism_size = int(elitism_size)
+        self.elites: list = []
         self.verbose = verbose
 
     # ------------------------------------------------------------------
@@ -100,6 +106,17 @@ class GA(Optimizer):
                     f"请重写 {cls.__name__}.{name}() 方法"
                 )
 
+    def _update_elites(
+        self, population: np.ndarray, fitness: np.ndarray
+    ):
+        """将当前种群合并入名人堂，保留最优解。"""
+        candidates = [
+            (ind.copy(), float(fit))
+            for ind, fit in zip(population, fitness)
+        ] + self.elites
+        candidates.sort(key=lambda x: x[1])
+        self.elites = candidates[: max(self.elitism_size, 1)]
+
     # ------------------------------------------------------------------
     # 主循环
     # ------------------------------------------------------------------
@@ -131,19 +148,20 @@ class GA(Optimizer):
         history_best = [float(best_fitness)]
         history_avg = [float(np.mean(fitness))]
 
+        self.elites = []
+        self._update_elites(population, fitness)
+
         pbar = tqdm(
             total=self.generations, desc="GA 进化", disable=not self.verbose
         )
 
         for _gen in range(self.generations):
-            old_elite_pop = []
-            old_elite_fit = np.array([])
-            if self.elite_size > 0:
-                elite_indices = np.argsort(fitness)[: self.elite_size]
-                old_elite_pop = population[elite_indices].copy()
-                old_elite_fit = fitness[elite_indices].copy()
-
-            selected = self.select(population, fitness, self.pop_size)
+            n_selected = self.pop_size - self.elitism_size
+            selected = (
+                self.select(population, fitness, n_selected)
+                if n_selected > 0
+                else np.array([])
+            )
             np.random.shuffle(selected)
 
             offspring = []
@@ -165,15 +183,17 @@ class GA(Optimizer):
                 if np.random.rand() < self.mutation_rate:
                     offspring[i] = self.mutate(offspring[i])
 
-            population = np.array(offspring[: self.pop_size])
+            if self.elitism_size > 0:
+                hof_pop = np.array([ind for ind, _ in self.elites])
+                population = np.vstack([hof_pop, offspring])[: self.pop_size]
+            else:
+                population = np.array(offspring[: self.pop_size])
+
             fitness = np.array(
                 [self.problem.evaluate(ind) for ind in population]
             )
 
-            if self.elite_size > 0:
-                worst_indices = np.argsort(fitness)[-self.elite_size:]
-                population[worst_indices] = old_elite_pop
-                fitness[worst_indices] = old_elite_fit
+            self._update_elites(population, fitness)
 
             current_best_idx = np.argmin(fitness)
             if fitness[current_best_idx] < best_fitness:

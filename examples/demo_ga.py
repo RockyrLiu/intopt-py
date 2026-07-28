@@ -78,10 +78,11 @@ def demo_tsp():
 
     ga = TspGA(
         problem,
-        pop_size=200,
+        pop_size=300,
         generations=500,
         crossover_rate=0.8,
         mutation_rate=0.2,
+        elitism_size=30,
     )
     result = ga.run()
 
