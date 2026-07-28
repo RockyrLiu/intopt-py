@@ -34,3 +34,9 @@ class TSPProblem(Problem):
     def is_feasible(self, solution: np.ndarray) -> bool:
         return bool(len(solution) == self.n and len(set(solution)) == self.n)
 
+    def clamp(self, solution: np.ndarray) -> np.ndarray:
+        s = solution.astype(int)
+        if len(s) == self.n and set(s) == set(range(self.n)):
+            return s
+        return np.random.permutation(self.n)
+
