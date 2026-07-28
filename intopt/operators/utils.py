@@ -27,15 +27,18 @@ def fitnessSharing(
     distance_threshold: float,
     sharing_extent: float,
 ) -> np.ndarray:
-    """适应度共享：距离近的个体互相抑制适应度，维护种群多样性。
+    """适应度共享：拥挤个体被加罚适应度，维护种群多样性。
 
-    适用于**最小化**问题。对每个个体，计算与其他个体的欧氏距离。
-    距离小于 ``distance_threshold`` 的邻居对该个体的共享和贡献：
+    对每个个体，计算与其他个体的欧氏距离。距离小于
+    ``distance_threshold`` 的邻居对该个体的共享和贡献：
 
         ``1 - distance / (sharing_extent * distance_threshold)``
 
-    先将适应度转为最大化风格，除以共享和，再转回最小化。
-    等价于使拥挤个体适应度变差。
+    调整公式：
+
+        ``adjusted = fitness + (sharing_sum - 1) * std(fitness)``
+
+    孤立个体 sharing_sum=1，不受影响；拥挤个体被加罚。
 
     Parameters
     ----------
@@ -70,5 +73,5 @@ def fitnessSharing(
     np.fill_diagonal(sharing, 0.0)
     sharing_sum = 1.0 + sharing.sum(axis=1)
 
-    max_fit = np.max(fitness)
-    return max_fit - (max_fit - fitness) / sharing_sum
+    scale = max(np.std(fitness), 1e-10)
+    return fitness + (sharing_sum - 1.0) * scale
