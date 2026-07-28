@@ -73,15 +73,15 @@ class GA(Optimizer):
 
     def init_population(self) -> np.ndarray:
         """初始化种群。**必须重写**。"""
-        raise NotImplementedError("请重写 init_population 方法")
+        raise NotImplementedError("Override init_population method")
 
     def crossover(self, parent1: np.ndarray, parent2: np.ndarray):
         """交叉操作。**必须重写**。"""
-        raise NotImplementedError("请重写 crossover 方法")
+        raise NotImplementedError("Override crossover method")
 
     def mutate(self, solution: np.ndarray) -> np.ndarray:
         """变异操作。**必须重写**。"""
-        raise NotImplementedError("请重写 mutate 方法")
+        raise NotImplementedError("Override mutate method")
 
     def select(
         self, population: np.ndarray, fitness: np.ndarray, k: int
@@ -93,7 +93,7 @@ class GA(Optimizer):
         k:
             需选择的个体数量。
         """
-        raise NotImplementedError("请重写 select 方法")
+        raise NotImplementedError("Override select method")
 
     # ------------------------------------------------------------------
     # 算子验证
@@ -104,7 +104,7 @@ class GA(Optimizer):
         for name in ("init_population", "crossover", "select", "mutate"):
             if name not in cls.__dict__:
                 raise NotImplementedError(
-                    f"请重写 {cls.__name__}.{name}() 方法"
+                    f"Override {cls.__name__}.{name}() method"
                 )
 
     def update_elites(

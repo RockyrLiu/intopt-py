@@ -2,6 +2,7 @@ import numpy as np
 from tqdm import tqdm
 
 from intopt.algorithms.base import Optimizer, OptimizeResult
+from intopt.algorithms.utils import metropolis
 
 
 class SA(Optimizer):
@@ -56,7 +57,7 @@ class SA(Optimizer):
 
     def mutate(self, solution: np.ndarray) -> np.ndarray:
         """变异操作。**必须重写**。"""
-        raise NotImplementedError("请重写 mutate 方法")
+        raise NotImplementedError("Override mutate method")
 
     # ------------------------------------------------------------------
     # 算子验证
@@ -66,7 +67,7 @@ class SA(Optimizer):
         cls = type(self)
         if "mutate" not in cls.__dict__:
             raise NotImplementedError(
-                f"请重写 {cls.__name__}.mutate() 方法"
+                f"Override {cls.__name__}.mutate()"
             )
 
     # ------------------------------------------------------------------
@@ -110,7 +111,7 @@ class SA(Optimizer):
                 candidate = self.mutate(current)
                 candidate_energy = self.problem.evaluate(candidate)
 
-                if self._metropolis(candidate_energy, current_energy, T):
+                if metropolis(candidate_energy, current_energy, T):
                     current = candidate
                     current_energy = candidate_energy
                     if candidate_energy < best_energy:
@@ -138,16 +139,3 @@ class SA(Optimizer):
             best_fitness=float(best_energy),
             history={"best": history_best, "current": history_current},
         )
-
-    @staticmethod
-    def _metropolis(new_energy: float, current_energy: float, T: float) -> bool:
-        """Metropolis 接受准则。
-
-        更优解总是接受；更差解以概率 exp(-ΔE/T) 接受。
-        温度 T 越高，接受差解的概率越大，有利于跳出局部最优。
-        """
-        if new_energy < current_energy:
-            return True
-        if T <= 0:
-            return False
-        return np.random.random() < np.exp((current_energy - new_energy) / T)
