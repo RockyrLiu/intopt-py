@@ -10,6 +10,12 @@ uv run pytest tests/ -v -k "sphere"   # 按名称匹配运行测试
 uv run ruff check intopt/ tests/      # lint（pyproject.toml 中无自定义配置，使用默认规则）
 ```
 
+## 开发原则
+
+- 采用 TDD（测试驱动开发）：先写测试，用户审阅后再实现功能
+- 测试采用函数式风格（顶层函数，不用测试类）
+- 每次修改、创建 `.py` 文件后运行 `uv run ruff check intopt/ tests/` 确保无 lint 错误
+
 ## 项目架构
 
 - `intopt/` 是库包（通过 hatchling 构建）。

@@ -44,3 +44,14 @@ class Optimizer(ABC):
     def run(self) -> OptimizeResult:
         """执行优化，返回统一结果对象。"""
         ...
+
+    @staticmethod
+    def _check_early_stop(early_stopping, history: dict) -> bool:
+        """检查是否应触发早停。
+
+        子类在每轮迭代结束后调用此方法，传入 ``early_stopping``
+        实例和当前 ``history`` 字典。返回 ``True`` 表示应提前终止。
+        """
+        if early_stopping is None:
+            return False
+        return early_stopping.step(history)

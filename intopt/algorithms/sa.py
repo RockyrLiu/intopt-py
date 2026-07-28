@@ -51,8 +51,13 @@ class SA(Optimizer):
         self.iter_per_temp = int(iter_per_temp)
         self.verbose = verbose
 
-    def run(self) -> OptimizeResult:
+    def run(self, early_stopping=None) -> OptimizeResult:
         """执行优化，返回 ``OptimizeResult``。
+
+        Parameters
+        ----------
+        early_stopping:
+            ``EarlyStopping`` 实例，默认 None 表示不启用早停。
 
         Returns
         -------
@@ -97,6 +102,11 @@ class SA(Optimizer):
                 "当前值": f"{current_energy:.4f}",
                 "最优值": f"{best_energy:.4f}",
             })
+            if self._check_early_stop(
+                early_stopping,
+                {"best": history_best, "current": history_current},
+            ):
+                break
         pbar.close()
 
         return OptimizeResult(
