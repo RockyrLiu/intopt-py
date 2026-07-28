@@ -38,6 +38,7 @@ intopt/
 - `Problem` 子类拥有自己的 `mutate` 方法 —— 内部委托给 `intopt.operators` 执行具体操作，算法代码只需调用 `problem.mutate()`。
 - `Optimizer.run()` 始终返回 `OptimizeResult`（dataclass：`best_solution`、`best_fitness`、`history`）。
 - `history` 是一个字典，至少包含键 `"best"`；算法可添加其他键（如 `"current"`、`"avg"`）。
+- 算子命名采用 DEAP 风格前缀：变异 `mut*`（如 `mutGaussian`）、交叉 `cx*`（如 `cxArithmetic`）、选择 `sel*`（如 `selTournament`）。
 
 ## Git 提交规范
 
