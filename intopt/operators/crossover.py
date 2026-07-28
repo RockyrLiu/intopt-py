@@ -4,7 +4,20 @@ from intopt.operators.utils import chaos_sequence
 
 
 def cxArithmetic(parent1: np.ndarray, parent2: np.ndarray):
-    """算术交叉：每维独立加权平均，用于连续型。"""
+    """算术交叉：每维独立加权平均，用于连续型。
+
+    Parameters
+    ----------
+    parent1 : np.ndarray
+        父代个体 1。
+    parent2 : np.ndarray
+        父代个体 2。
+
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray]
+        两个子代个体。
+    """
     alpha = np.random.random(len(parent1))
     c1 = alpha * parent1 + (1 - alpha) * parent2
     c2 = (1 - alpha) * parent1 + alpha * parent2
@@ -18,7 +31,26 @@ def cxSimulatedBinary(
     lower: np.ndarray | None = None,
     upper: np.ndarray | None = None,
 ):
-    """模拟二进制交叉 (SBX)，用于连续型。"""
+    """模拟二进制交叉 (SBX)，用于连续型。
+
+    Parameters
+    ----------
+    parent1 : np.ndarray
+        父代个体 1。
+    parent2 : np.ndarray
+        父代个体 2。
+    eta : float
+        分布指数，越大子代越接近父代，默认 20。
+    lower : np.ndarray or None
+        各维度的下界，默认 None 不裁剪。
+    upper : np.ndarray or None
+        各维度的上界，默认 None 不裁剪。
+
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray]
+        两个子代个体。
+    """
     u = np.random.random(len(parent1))
     mask = u <= 0.5
     beta = np.empty(len(parent1))
@@ -35,7 +67,20 @@ def cxSimulatedBinary(
 
 
 def cxOnePoint(parent1: np.ndarray, parent2: np.ndarray):
-    """单点交叉：随机选一个切点，交换后半段。"""
+    """单点交叉：随机选一个切点，交换后半段。适用于通用向量型。
+
+    Parameters
+    ----------
+    parent1 : np.ndarray
+        父代个体 1。
+    parent2 : np.ndarray
+        父代个体 2。
+
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray]
+        两个子代个体。
+    """
     n = len(parent1)
     if n < 2:
         return parent1.copy(), parent2.copy()
@@ -46,7 +91,20 @@ def cxOnePoint(parent1: np.ndarray, parent2: np.ndarray):
 
 
 def cxTwoPoint(parent1: np.ndarray, parent2: np.ndarray):
-    """两点交叉：随机选两个切点，交换中间段。"""
+    """两点交叉：随机选两个切点，交换中间段。适用于通用向量型。
+
+    Parameters
+    ----------
+    parent1 : np.ndarray
+        父代个体 1。
+    parent2 : np.ndarray
+        父代个体 2。
+
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray]
+        两个子代个体。
+    """
     n = len(parent1)
     if n < 3:
         return cxOnePoint(parent1, parent2)
@@ -59,7 +117,22 @@ def cxTwoPoint(parent1: np.ndarray, parent2: np.ndarray):
 def cxUniform(
     parent1: np.ndarray, parent2: np.ndarray, indpb: float = 0.5
 ):
-    """均匀交叉：每个位置以概率 indpb 交换，用于离散/二值型。"""
+    """均匀交叉：每个位置以概率 ``indpb`` 交换，用于离散/二值型。
+
+    Parameters
+    ----------
+    parent1 : np.ndarray
+        父代个体 1。
+    parent2 : np.ndarray
+        父代个体 2。
+    indpb : float
+        每个位置交换的概率，默认 0.5。
+
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray]
+        两个子代个体。
+    """
     mask = np.random.random(len(parent1)) < indpb
     c1 = parent1.copy()
     c2 = parent2.copy()
@@ -69,7 +142,20 @@ def cxUniform(
 
 
 def cxOrdered(parent1: np.ndarray, parent2: np.ndarray):
-    """顺序交叉 (OX)，用于排列型。"""
+    """顺序交叉 (OX)，用于排列型。
+
+    Parameters
+    ----------
+    parent1 : np.ndarray
+        父代排列个体 1。
+    parent2 : np.ndarray
+        父代排列个体 2。
+
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray]
+        两个排列型子代个体。
+    """
     size = len(parent1)
     p1 = parent1.astype(int)
     p2 = parent2.astype(int)
@@ -95,7 +181,20 @@ def _fill_ox(child, parent, cx1, cx2, size):
 
 
 def cxPartialyMatched(parent1: np.ndarray, parent2: np.ndarray):
-    """部分匹配交叉 (PMX)，用于排列型。"""
+    """部分匹配交叉 (PMX)，用于排列型。
+
+    Parameters
+    ----------
+    parent1 : np.ndarray
+        父代排列个体 1。
+    parent2 : np.ndarray
+        父代排列个体 2。
+
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray]
+        两个排列型子代个体。
+    """
     size = len(parent1)
     p1 = parent1.astype(int)
     p2 = parent2.astype(int)
@@ -118,7 +217,20 @@ def cxPartialyMatched(parent1: np.ndarray, parent2: np.ndarray):
 
 
 def cxChaosArithmetic(parent1: np.ndarray, parent2: np.ndarray):
-    """混沌算术交叉：权重由 Logistic 序列生成，用于连续型。"""
+    """混沌算术交叉：权重由 Logistic 序列生成，用于连续型。
+
+    Parameters
+    ----------
+    parent1 : np.ndarray
+        父代个体 1。
+    parent2 : np.ndarray
+        父代个体 2。
+
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray]
+        两个子代个体。
+    """
     alpha = chaos_sequence(len(parent1))
     c1 = alpha * parent1 + (1 - alpha) * parent2
     c2 = (1 - alpha) * parent1 + alpha * parent2
@@ -126,7 +238,20 @@ def cxChaosArithmetic(parent1: np.ndarray, parent2: np.ndarray):
 
 
 def cxChaosOrdered(parent1: np.ndarray, parent2: np.ndarray):
-    """混沌顺序交叉：切点由 Logistic 序列确定，用于排列型。"""
+    """混沌顺序交叉：切点由 Logistic 序列确定，用于排列型。
+
+    Parameters
+    ----------
+    parent1 : np.ndarray
+        父代排列个体 1。
+    parent2 : np.ndarray
+        父代排列个体 2。
+
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray]
+        两个排列型子代个体。
+    """
     size = len(parent1)
     p1 = parent1.astype(int)
     p2 = parent2.astype(int)

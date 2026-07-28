@@ -4,20 +4,40 @@ from intopt.operators.utils import chaos_sequence
 
 
 def mutSwap(solution: np.ndarray) -> np.ndarray:
-    """交换变异：随机交换两个位置。用于排列型解（如 TSP 路径）。"""
+    """交换变异：随机交换两个位置。用于排列型解（如 TSP 路径）。
+
+    Parameters
+    ----------
+    solution : np.ndarray
+        待变异的排列解。
+
+    Returns
+    -------
+    np.ndarray
+        交换两个位置后的新解。
+    """
     n = len(solution)
-    i, j = np.random.choice(
-        n, size=2, replace=False
-    )  # 从 [0, n) 中无放回地选择 2 个不同的整数
+    i, j = np.random.choice(n, size=2, replace=False)
     new_sol = solution.copy()
     new_sol[i], new_sol[j] = solution[j], solution[i]
     return new_sol
 
 
 def mutFlip(solution: np.ndarray) -> np.ndarray:
-    """翻转变异：随机翻转一个 0/1 位。用于二值型解（如 0-1 背包）。"""
+    """翻转变异：随机翻转一个 0/1 位。用于二值型解（如 0-1 背包）。
+
+    Parameters
+    ----------
+    solution : np.ndarray
+        待变异的二值解。
+
+    Returns
+    -------
+    np.ndarray
+        翻转一个随机位后的新解。
+    """
     n = len(solution)
-    idx = np.random.randint(n)  # 从 [0, n) 中随机选择一个整数
+    idx = np.random.randint(n)
     new_sol = solution.copy()
     new_sol[idx] = 1.0 - new_sol[idx]
     return new_sol
@@ -29,7 +49,24 @@ def mutGaussian(
     sigma: float = 0.5,
     indpb: float = 0.5,
 ) -> np.ndarray:
-    """高斯变异：每个维度以概率 ``indpb`` 变异，扰动值服从 N(mu, sigma²)。用于连续型解。"""
+    """高斯变异：每个维度以概率 ``indpb`` 变异，扰动值服从 N(mu, sigma²)。用于连续型解。
+
+    Parameters
+    ----------
+    solution : np.ndarray
+        待变异的连续解。
+    mu : float
+        扰动均值，默认 0.0。
+    sigma : float
+        扰动标准差，默认 0.5。
+    indpb : float
+        每个维度独立变异的概率，默认 0.5。
+
+    Returns
+    -------
+    np.ndarray
+        高斯变异后的新解。
+    """
     n = len(solution)
     mask = np.random.random(n) < indpb
     new_sol = solution.copy()
@@ -38,7 +75,18 @@ def mutGaussian(
 
 
 def mutChaosSwap(solution: np.ndarray) -> np.ndarray:
-    """混沌交换变异：交换位置由 Logistic 序列确定。用于排列型解。"""
+    """混沌交换变异：交换位置由 Logistic 序列确定。用于排列型解。
+
+    Parameters
+    ----------
+    solution : np.ndarray
+        待变异的排列解。
+
+    Returns
+    -------
+    np.ndarray
+        混沌交换两个位置后的新解。
+    """
     n = len(solution)
     ch = chaos_sequence(2)
     i, j = np.clip(np.floor(ch * n).astype(int), 0, n - 1)
