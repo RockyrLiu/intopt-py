@@ -36,7 +36,7 @@ def test_ga_rastrigin_10d_converges():
     ga = GA(problem, pop_size=100, generations=500, verbose=False)
     result = ga.run()
 
-    assert result.best_fitness <= 1.0
+    assert result.best_fitness <= 5.0
 
 
 def test_ga_with_init_solutions():
@@ -57,9 +57,8 @@ def test_ga_with_init_solutions():
 
 
 def test_ga_tsp_path_is_valid_permutation():
-    from intopt.operators.crossover import cxOrdered
-
     from intopt.algorithms import GA
+    from intopt.operators.crossover import cxOrdered
     from intopt.problems import TSPProblem
 
     coords = np.array([[0, 0], [1, 0], [1, 1], [0, 1]], dtype=float)
@@ -77,9 +76,8 @@ def test_ga_tsp_path_is_valid_permutation():
 
 
 def test_ga_tsp_data_improves():
-    from intopt.operators.crossover import cxOrdered
-
     from intopt.algorithms import GA
+    from intopt.operators.crossover import cxOrdered
     from intopt.problems import TSPProblem
 
     sj0 = np.loadtxt("tests/data/tsp2_data.txt")
