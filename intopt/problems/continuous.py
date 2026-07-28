@@ -2,7 +2,6 @@ from collections.abc import Callable
 
 import numpy as np
 
-from intopt.operators.mutate import mutGaussian
 from intopt.problems.base import Problem
 
 
@@ -16,9 +15,6 @@ class ContinuousProblem(Problem):
         输入为 1D ndarray，返回标量。值越小越好。
     bounds:
         每个维度的 ``(min, max)`` 边界。
-
-    如需自定义变异参数，继承此类并覆写 ``mutate`` 方法即可：
-    ``return mutGaussian(solution, sigma=1.0)``。
     """
 
     def __init__(
@@ -40,9 +36,6 @@ class ContinuousProblem(Problem):
 
     def is_feasible(self, solution: np.ndarray) -> bool:
         return bool(np.all(solution >= self.lower) and np.all(solution <= self.upper))
-
-    def mutate(self, solution: np.ndarray) -> np.ndarray:
-        return mutGaussian(solution)
 
     def clamp(self, solution: np.ndarray) -> np.ndarray:
         """将解钳制到边界内。"""

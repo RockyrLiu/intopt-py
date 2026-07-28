@@ -1,6 +1,5 @@
 import numpy as np
 
-from intopt.operators.mutate import mutFlip
 from intopt.problems.base import Problem
 
 
@@ -45,7 +44,4 @@ class KnapsackProblem(Problem):
 
     def is_feasible(self, solution: np.ndarray) -> bool:
         return bool(float(solution @ self.weights) <= self.capacity)
-
-    def mutate(self, solution: np.ndarray) -> np.ndarray:
-        return mutFlip(solution)
 
