@@ -1,3 +1,27 @@
+from intopt.operators.crossover import (
+    cxArithmetic,
+    cxOnePoint,
+    cxOrdered,
+    cxPartialyMatched,
+    cxSimulatedBinary,
+    cxTwoPoint,
+    cxUniform,
+)
 from intopt.operators.mutate import mutFlip, mutGaussian, mutSwap
+from intopt.operators.selection import selBest, selRoulette, selTournament
 
-__all__ = ["mutFlip", "mutGaussian", "mutSwap"]
+__all__ = [
+    "cxArithmetic",
+    "cxOnePoint",
+    "cxOrdered",
+    "cxPartialyMatched",
+    "cxSimulatedBinary",
+    "cxTwoPoint",
+    "cxUniform",
+    "mutFlip",
+    "mutGaussian",
+    "mutSwap",
+    "selBest",
+    "selRoulette",
+    "selTournament",
+]
