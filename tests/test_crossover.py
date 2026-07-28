@@ -31,3 +31,19 @@ def test_crossover_operators():
         c1, c2 = cx(p1, p2)
         assert set(c1) == set(range(5))
         assert set(c2) == set(range(5))
+
+
+def test_chaos_crossover_operators():
+    """混沌交叉算子返回合法个体"""
+    from intopt.operators.crossover import cxChaosArithmetic, cxChaosOrdered
+
+    p1 = np.array([0.0, 1.0, 2.0])
+    p2 = np.array([3.0, 4.0, 5.0])
+    c1, c2 = cxChaosArithmetic(p1, p2)
+    assert c1.shape == (3,) and c2.shape == (3,)
+
+    p1 = np.array([0, 1, 2, 3, 4])
+    p2 = np.array([4, 3, 2, 1, 0])
+    c1, c2 = cxChaosOrdered(p1, p2)
+    assert set(c1) == set(range(5))
+    assert set(c2) == set(range(5))
