@@ -41,11 +41,17 @@ def test_sa_early_stopping_terminates_early():
     """SA 集成：早停应在收敛后提前终止，而非跑完完整退火"""
     from intopt.algorithms import SA
     from intopt.early_stopping import EarlyStopping
+    from intopt.operators.mutate import mutGaussian
     from intopt.problems import ContinuousProblem
 
     problem = ContinuousProblem(func=_sphere, bounds=[(-5.0, 5.0)] * 2)
+
+    class _ContSA(SA):
+        def mutate(self, solution):
+            return mutGaussian(solution)
+
     es = EarlyStopping(key="best", patience=50, min_delta=1e-6)
-    sa = SA(
+    sa = _ContSA(
         problem,
         initial_temp=100,
         final_temp=1e-3,
