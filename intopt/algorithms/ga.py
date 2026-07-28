@@ -64,6 +64,7 @@ class GA(Optimizer):
         self.mutpb = float(mutpb)
         self.elitism_size = int(elitism_size)
         self.elites: list = []
+        self.population: np.ndarray | None = None
         self.verbose = verbose
 
     # ------------------------------------------------------------------
@@ -106,7 +107,7 @@ class GA(Optimizer):
                     f"请重写 {cls.__name__}.{name}() 方法"
                 )
 
-    def _update_elites(
+    def update_elites(
         self, population: np.ndarray, fitness: np.ndarray
     ):
         """将当前种群合并入精英，保留最优解。"""
@@ -149,7 +150,7 @@ class GA(Optimizer):
         history_avg = [float(np.mean(fitness))]
 
         self.elites = []
-        self._update_elites(population, fitness)
+        self.update_elites(population, fitness)
 
         pbar = tqdm(
             total=self.generations, desc="GA 进化", disable=not self.verbose
@@ -193,7 +194,7 @@ class GA(Optimizer):
                 [self.problem.evaluate(ind) for ind in population]
             )
 
-            self._update_elites(population, fitness)
+            self.update_elites(population, fitness)
 
             current_best_idx = np.argmin(fitness)
             if fitness[current_best_idx] < best_fitness:
@@ -218,6 +219,8 @@ class GA(Optimizer):
 
         if self.verbose:
             pbar.close()
+
+        self.population = population
 
         return OptimizeResult(
             best_solution=best_solution,
