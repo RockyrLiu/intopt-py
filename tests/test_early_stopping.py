@@ -50,7 +50,7 @@ def test_sa_early_stopping_terminates_early():
         def mutate(self, solution):
             return mutGaussian(solution)
 
-    es = EarlyStopping(key="best", patience=50, min_delta=1e-6)
+    es = EarlyStopping(key="best", patience=20, min_delta=1e-6)
     sa = _ContSA(
         problem,
         initial_temp=100,

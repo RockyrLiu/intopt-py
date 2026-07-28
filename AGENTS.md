@@ -13,6 +13,7 @@ uv run ruff check intopt/ tests/      # lint（pyproject.toml 中无自定义配
 ## 开发原则
 
 - 采用 TDD（测试驱动开发）：先写测试，用户审阅后再实现功能
+- 测试时只需运行对应模块有新增或修改的测试文件，无需每次运行所有测试
 - 测试采用函数式风格（顶层函数，不用测试类）
 - 每次修改、创建 `.py` 文件后运行 `uv run ruff check intopt/ tests/` 确保无 lint 错误
 

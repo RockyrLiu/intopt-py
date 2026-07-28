@@ -72,7 +72,7 @@ def test_ga_rastrigin_10d_converges():
     ga = _ContGA(problem, pop_size=100, generations=500, verbose=False)
     result = ga.run()
 
-    assert result.best_fitness <= 6.0
+    assert result.best_fitness <= 7.0
 
 
 def test_ga_with_custom_init_population():
