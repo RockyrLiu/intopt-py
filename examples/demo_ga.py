@@ -1,6 +1,7 @@
 import numpy as np
 
-from intopt.algorithms import SA
+from intopt.algorithms import GA
+from intopt.operators.crossover import cxOrdered
 from intopt.problems import ContinuousProblem, TSPProblem
 from intopt.visualize import plot_convergence, plot_tsp_path
 
@@ -12,29 +13,34 @@ def _rastrigin(x: np.ndarray) -> float:
 
 def demo_continuous():
     print("=" * 50)
-    print("模拟退火 — 连续优化 (Rastrigin 10D)")
+    print("遗传算法 — 连续优化 (Rastrigin 10D)")
     print("=" * 50)
 
     problem = ContinuousProblem(
         func=_rastrigin, bounds=[(-5.12, 5.12)] * 10
     )
-    sa = SA(
+
+    rng = np.random.default_rng(0)
+    init_pop = rng.uniform(-0.5, 0.5, size=(100, 10))
+
+    ga = GA(
         problem,
-        initial_temp=100,
-        final_temp=1e-3,
-        cooling_rate=0.999,
-        iter_per_temp=100,
+        pop_size=100,
+        generations=200,
+        crossover_rate=0.8,
+        mutation_rate=0.2,
+        init_solutions=init_pop,
     )
-    result = sa.run()
+    result = ga.run()
 
     print(f"最优适应度 : {result.best_fitness:.6f}")
     print(f"最优解      : {result.best_solution}")
-    plot_convergence(result, title="SA — Rastrigin 10D 收敛曲线")
+    plot_convergence(result, title="GA — Rastrigin 10D 收敛曲线")
 
 
 def demo_tsp():
     print("\n" + "=" * 50)
-    print("模拟退火 — TSP (101 城市)")
+    print("遗传算法 — TSP (101 城市)")
     print("=" * 50)
 
     sj0 = np.loadtxt("tests/data/tsp2_data.txt")
@@ -44,14 +50,20 @@ def demo_tsp():
     coords = np.vstack(([70, 40], coords))
 
     problem = TSPProblem(coords)
-    sa = SA(
+
+    class TspGA(GA):
+        def crossover(self, p1, p2):
+            return cxOrdered(p1, p2)
+
+    ga = TspGA(
         problem,
-        initial_temp=100,
-        final_temp=1e-3,
-        cooling_rate=0.999,
-        iter_per_temp=100,
+        pop_size=200,
+        generations=500,
+        crossover_rate=0.8,
+        mutation_rate=0.3,
+        elitism_ratio=0.1,
     )
-    result = sa.run()
+    result = ga.run()
 
     print(f"最优路径长度 : {result.best_fitness:.2f}")
     print(f"最优路径     : {result.best_solution}")
