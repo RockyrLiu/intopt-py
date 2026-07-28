@@ -29,3 +29,7 @@ class Problem(ABC):
     def mutate(self, solution: np.ndarray) -> np.ndarray:
         """对 ``solution`` 施加变异，生成邻域解。"""
         ...
+
+    def clamp(self, solution: np.ndarray) -> np.ndarray:
+        """将解钳制到可行域内。默认不做任何处理。"""
+        return solution
