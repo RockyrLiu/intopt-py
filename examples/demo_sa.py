@@ -1,6 +1,7 @@
 import numpy as np
 
 from intopt.algorithms import SA
+from intopt.operators.mutate import mutGaussian, mutSwap
 from intopt.problems import ContinuousProblem, TSPProblem
 from intopt.visualize import plot_convergence, plot_tsp_path
 
@@ -18,7 +19,12 @@ def demo_continuous():
     problem = ContinuousProblem(
         func=_rastrigin, bounds=[(-5.12, 5.12)] * 10
     )
-    sa = SA(
+
+    class ContSA(SA):
+        def mutate(self, solution):
+            return mutGaussian(solution)
+
+    sa = ContSA(
         problem,
         initial_temp=100,
         final_temp=1e-3,
@@ -44,7 +50,12 @@ def demo_tsp():
     coords = np.vstack(([70, 40], coords))
 
     problem = TSPProblem(coords)
-    sa = SA(
+
+    class TspSA(SA):
+        def mutate(self, solution):
+            return mutSwap(solution)
+
+    sa = TspSA(
         problem,
         initial_temp=100,
         final_temp=1e-3,
@@ -59,5 +70,5 @@ def demo_tsp():
 
 
 if __name__ == "__main__":
-    # demo_continuous()
-    demo_tsp()
+    demo_continuous()
+    # demo_tsp()

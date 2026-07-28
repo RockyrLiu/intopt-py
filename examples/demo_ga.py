@@ -1,7 +1,10 @@
 import numpy as np
 
 from intopt.algorithms import GA
-from intopt.operators.crossover import cxOrdered
+from intopt.operators.crossover import cxArithmetic, cxOrdered
+from intopt.operators.initialize import initRandom
+from intopt.operators.mutate import mutGaussian, mutSwap
+from intopt.operators.selection import selTournament
 from intopt.problems import ContinuousProblem, TSPProblem
 from intopt.visualize import plot_convergence, plot_tsp_path
 
@@ -20,16 +23,25 @@ def demo_continuous():
         func=_rastrigin, bounds=[(-5.12, 5.12)] * 10
     )
 
-    rng = np.random.default_rng(0)
-    init_pop = rng.uniform(-0.5, 0.5, size=(100, 10))
+    class ContGA(GA):
+        def init_population(self):
+            return initRandom(self.problem, self.pop_size)
 
-    ga = GA(
+        def crossover(self, p1, p2):
+            return cxArithmetic(p1, p2)
+
+        def select(self, pop, fit, k):
+            return selTournament(pop, fit, k)
+
+        def mutate(self, solution):
+            return self.problem.clamp(mutGaussian(solution))
+
+    ga = ContGA(
         problem,
         pop_size=100,
-        generations=200,
+        generations=500,
         crossover_rate=0.8,
         mutation_rate=0.2,
-        init_solutions=init_pop,
     )
     result = ga.run()
 
@@ -52,16 +64,24 @@ def demo_tsp():
     problem = TSPProblem(coords)
 
     class TspGA(GA):
+        def init_population(self):
+            return initRandom(self.problem, self.pop_size)
+
         def crossover(self, p1, p2):
             return cxOrdered(p1, p2)
+
+        def select(self, pop, fit, k):
+            return selTournament(pop, fit, k)
+
+        def mutate(self, solution):
+            return mutSwap(solution)
 
     ga = TspGA(
         problem,
         pop_size=200,
         generations=500,
         crossover_rate=0.8,
-        mutation_rate=0.3,
-        elitism_ratio=0.1,
+        mutation_rate=0.2,
     )
     result = ga.run()
 
