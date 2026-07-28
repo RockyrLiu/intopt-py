@@ -37,9 +37,9 @@ class GA(Optimizer):
         种群大小，默认 50。
     generations:
         进化代数，默认 100。
-    crossover_rate:
+    cxpb:
         交叉概率，默认 0.8。
-    mutation_rate:
+    mutpb:
         变异概率，默认 0.2。
     elitism_size:
         精英保留数量，默认 0。
@@ -52,16 +52,16 @@ class GA(Optimizer):
         problem,
         pop_size: int = 50,
         generations: int = 100,
-        crossover_rate: float = 0.8,
-        mutation_rate: float = 0.2,
+        cxpb: float = 0.8,
+        mutpb: float = 0.2,
         elitism_size: int = 0,
         verbose: bool = True,
     ):
         super().__init__(problem)
         self.pop_size = int(pop_size)
         self.generations = int(generations)
-        self.crossover_rate = float(crossover_rate)
-        self.mutation_rate = float(mutation_rate)
+        self.cxpb = float(cxpb)
+        self.mutpb = float(mutpb)
         self.elitism_size = int(elitism_size)
         self.elites: list = []
         self.verbose = verbose
@@ -109,7 +109,7 @@ class GA(Optimizer):
     def _update_elites(
         self, population: np.ndarray, fitness: np.ndarray
     ):
-        """将当前种群合并入名人堂，保留最优解。"""
+        """将当前种群合并入精英，保留最优解。"""
         candidates = [
             (ind.copy(), float(fit))
             for ind, fit in zip(population, fitness)
@@ -170,7 +170,7 @@ class GA(Optimizer):
                     offspring.append(self.problem.clamp(selected[i].copy()))
                     break
                 p1, p2 = selected[i], selected[i + 1]
-                if np.random.rand() < self.crossover_rate:
+                if np.random.rand() < self.cxpb:
                     c1, c2 = self.crossover(p1, p2)
                     c1 = self.problem.clamp(c1)
                     c2 = self.problem.clamp(c2)
@@ -180,12 +180,12 @@ class GA(Optimizer):
                 offspring.append(c2)
 
             for i in range(len(offspring)):
-                if np.random.rand() < self.mutation_rate:
+                if np.random.rand() < self.mutpb:
                     offspring[i] = self.mutate(offspring[i])
 
             if self.elitism_size > 0:
-                hof_pop = np.array([ind for ind, _ in self.elites])
-                population = np.vstack([hof_pop, offspring])[: self.pop_size]
+                elite_pop = np.array([ind for ind, _ in self.elites])
+                population = np.vstack([elite_pop, offspring])[: self.pop_size]
             else:
                 population = np.array(offspring[: self.pop_size])
 

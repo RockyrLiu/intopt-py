@@ -40,8 +40,8 @@ def demo_chaos_continuous():
         problem,
         pop_size=100,
         generations=200,
-        crossover_rate=0.8,
-        mutation_rate=0.2,
+        cxpb=0.8,
+        mutpb=0.2,
     )
     result = ga.run()
 
@@ -80,8 +80,8 @@ def demo_chaos_tsp():
         problem,
         pop_size=200,
         generations=500,
-        crossover_rate=0.8,
-        mutation_rate=0.2,
+        cxpb=0.8,
+        mutpb=0.2,
     )
     result = ga.run()
 
