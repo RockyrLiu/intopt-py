@@ -7,6 +7,12 @@ from intopt.operators.crossover import (
     cxTwoPoint,
     cxUniform,
 )
+from intopt.operators.initialize import (
+    initChaosContinuous,
+    initChaosPermutation,
+    initCustom,
+    initRandom,
+)
 from intopt.operators.mutate import mutFlip, mutGaussian, mutSwap
 from intopt.operators.selection import selBest, selRoulette, selTournament
 
@@ -18,6 +24,10 @@ __all__ = [
     "cxSimulatedBinary",
     "cxTwoPoint",
     "cxUniform",
+    "initChaosContinuous",
+    "initChaosPermutation",
+    "initCustom",
+    "initRandom",
     "mutFlip",
     "mutGaussian",
     "mutSwap",
