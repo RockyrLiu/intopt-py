@@ -2,24 +2,26 @@ import numpy as np
 from tqdm import tqdm
 
 from intopt.algorithms.base import Optimizer, OptimizeResult
-from intopt.operators.crossover import cxArithmetic
-from intopt.operators.selection import selTournament
 
 
 class GA(Optimizer):
     """遗传算法。
 
-    用户可通过继承重写 ``init_population``、``crossover``、``select``
-    方法来自定义遗传操作，无需修改算法主循环。
+    用户**必须**通过继承重写所有算子方法。
 
-    **默认算子**：
+    **必须重写的方法**：
 
-    - 交叉：`cxArithmetic`_（算术交叉），适用于连续型。排列型问题需重写为
-      `cxOrdered`_ 或 `cxPartialyMatched`_。
-    - 选择：`selTournament`_（锦标赛选择，tournsize=3）。
-    - 变异：通过 ``problem.mutate()`` 委托给问题实例（如
-      ContinuousProblem 默认用 `mutGaussian`_，TSPProblem 用 `mutSwap`_），
-      GA 不直接选择变异算子。
+    - ``init_population()`` — 初始化种群。连续型用 `initRandom`_，
+      混沌连续型用 `initChaosContinuous`_，排列型混沌用
+      `initChaosPermutation`_，自定义用 `initCustom`_。
+    - ``crossover(p1, p2)`` — 交叉操作。连续型用 `cxArithmetic`_ 或
+      `cxSimulatedBinary`_，排列型用 `cxOrdered`_ 或
+      `cxPartialyMatched`_，通用向量用 `cxOnePoint`_/`cxTwoPoint`_，
+      离散/二值用 `cxUniform`_。
+    - ``select(population, fitness, k)`` — 选择操作。可用
+      `selTournament`_、`selRoulette`_、`selBest`_。
+    - ``mutate(solution)`` — 变异操作。连续型用 `mutGaussian`_，
+      排列型用 `mutSwap`_，二值型用 `mutFlip`_。
 
     Parameters
     ----------
@@ -35,8 +37,6 @@ class GA(Optimizer):
         变异概率，默认 0.2。
     elitism_ratio:
         精英保留比例，默认 0 表示不保留精英。
-    init_solutions:
-        自定义初始种群 (pop_size, *ind_shape)，默认 None 表示随机生成。
     verbose:
         是否显示进度条，默认 True。
     """
@@ -49,7 +49,6 @@ class GA(Optimizer):
         crossover_rate: float = 0.8,
         mutation_rate: float = 0.2,
         elitism_ratio: float = 0.0,
-        init_solutions: np.ndarray | None = None,
         verbose: bool = True,
     ):
         super().__init__(problem)
@@ -59,47 +58,47 @@ class GA(Optimizer):
         self.mutation_rate = float(mutation_rate)
         self.elitism_ratio = float(elitism_ratio)
         self.elite_size = int(elitism_ratio * pop_size)
-        self.init_solutions = (
-            np.array(init_solutions, copy=True)
-            if init_solutions is not None
-            else None
-        )
         self.verbose = verbose
 
     # ------------------------------------------------------------------
-    # 可被子类重写的方法
+    # 必须重写的方法
     # ------------------------------------------------------------------
 
     def init_population(self) -> np.ndarray:
-        """初始化种群。"""
-        if self.init_solutions is not None:
-            if len(self.init_solutions) != self.pop_size:
-                raise ValueError(
-                    f"init_solutions 长度 ({len(self.init_solutions)}) "
-                    f"与 pop_size ({self.pop_size}) 不匹配"
-                )
-            return self.init_solutions.copy()
-        return np.array(
-            [self.problem.random_solution() for _ in range(self.pop_size)]
-        )
+        """初始化种群。**必须重写**。"""
+        raise NotImplementedError("请重写 init_population 方法")
 
     def crossover(self, parent1: np.ndarray, parent2: np.ndarray):
-        """交叉操作。默认使用算术交叉。"""
-        return cxArithmetic(parent1, parent2)
+        """交叉操作。**必须重写**。"""
+        raise NotImplementedError("请重写 crossover 方法")
+
+    def mutate(self, solution: np.ndarray) -> np.ndarray:
+        """变异操作。**必须重写**。"""
+        raise NotImplementedError("请重写 mutate 方法")
 
     def select(
-        self, population: np.ndarray, fitness: np.ndarray, k: int | None = None
+        self, population: np.ndarray, fitness: np.ndarray, k: int
     ) -> np.ndarray:
-        """选择操作。默认使用锦标赛选择。
+        """选择操作。**必须重写**。
 
         Parameters
         ----------
         k:
-            选择的个体数量，默认等于 ``pop_size``。
+            需选择的个体数量。
         """
-        if k is None:
-            k = self.pop_size
-        return selTournament(population, fitness, k)
+        raise NotImplementedError("请重写 select 方法")
+
+    # ------------------------------------------------------------------
+    # 算子验证
+    # ------------------------------------------------------------------
+
+    def _validate_overrides(self):
+        cls = type(self)
+        for name in ("init_population", "crossover", "select", "mutate"):
+            if name not in cls.__dict__:
+                raise NotImplementedError(
+                    f"请重写 {cls.__name__}.{name}() 方法"
+                )
 
     # ------------------------------------------------------------------
     # 主循环
@@ -120,6 +119,8 @@ class GA(Optimizer):
             - ``"best"``  每代全局最优适应度
             - ``"avg"``   每代平均适应度
         """
+        self._validate_overrides()
+
         population = self.init_population()
         fitness = np.array([self.problem.evaluate(ind) for ind in population])
 
@@ -162,9 +163,7 @@ class GA(Optimizer):
 
             for i in range(len(offspring)):
                 if np.random.rand() < self.mutation_rate:
-                    offspring[i] = self.problem.clamp(
-                        self.problem.mutate(offspring[i])
-                    )
+                    offspring[i] = self.mutate(offspring[i])
 
             population = np.array(offspring[: self.pop_size])
             fitness = np.array(

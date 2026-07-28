@@ -11,12 +11,15 @@ class SA(Optimizer):
     (接受差解的概率高)，随温度降低运动减缓 (接受差解的概率降低)，最终凝固
     在最低能量状态 (全局最优)。
 
-    SA 只关注退火调度本身，变异操作由 ``problem.mutate`` 提供。
+    **必须重写的方法**：
+
+    - ``mutate(solution)`` — 变异操作。连续型用 `mutGaussian`_，
+      排列型用 `mutSwap`_，二值型用 `mutFlip`_。
 
     Parameters
     ----------
     problem:
-        待求解的优化问题实例。必须实现 ``mutate`` 方法。
+        待求解的优化问题实例。
     init_solution:
         自定义初始解，默认 None 表示随机生成。
     initial_temp:
@@ -51,6 +54,25 @@ class SA(Optimizer):
         self.iter_per_temp = int(iter_per_temp)
         self.verbose = verbose
 
+    def mutate(self, solution: np.ndarray) -> np.ndarray:
+        """变异操作。**必须重写**。"""
+        raise NotImplementedError("请重写 mutate 方法")
+
+    # ------------------------------------------------------------------
+    # 算子验证
+    # ------------------------------------------------------------------
+
+    def _validate_overrides(self):
+        cls = type(self)
+        if "mutate" not in cls.__dict__:
+            raise NotImplementedError(
+                f"请重写 {cls.__name__}.mutate() 方法"
+            )
+
+    # ------------------------------------------------------------------
+    # 主循环
+    # ------------------------------------------------------------------
+
     def run(self, early_stopping=None) -> OptimizeResult:
         """执行优化，返回 ``OptimizeResult``。
 
@@ -66,6 +88,8 @@ class SA(Optimizer):
             - ``"best"``    每个温度结束时全局最优适应度
             - ``"current"`` 每个温度结束时当前解适应度
         """
+        self._validate_overrides()
+
         if self.init_solution is not None:
             current = self.init_solution.copy()
         else:
@@ -83,7 +107,7 @@ class SA(Optimizer):
         pbar = tqdm(total=total_steps, desc="退火进度", disable=not self.verbose)
         while T > self.Tf:
             for _ in range(self.iter_per_temp):
-                candidate = self.problem.mutate(current)
+                candidate = self.mutate(current)
                 candidate_energy = self.problem.evaluate(candidate)
 
                 if self._metropolis(candidate_energy, current_energy, T):
