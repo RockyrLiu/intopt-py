@@ -1,170 +1,370 @@
 # 智能优化算法
 
-当前仓库下是一些常见的智能优化算法，如模拟退火算法、遗传算法等。
+当前仓库实现了一些常见的智能优化算法，采用统一的包接口设计。
 
 ## 目录
 
-- [模拟退火算法 (SA)](#模拟退火算法-simulated-annealing)
-- [遗传算法 (GA)](#遗传算法genetic-algorithm)
-  - [从零实现](#从0实现的遗传算法)
-  - [基于 DEAP 框架](#基于deap框架的遗传算法)
-- [粒子群优化算法 (PSO)](#粒子群优化算法particle-swarm-optimization)
-- [蚁群算法 (ACO)](#蚁群算法ant-colony-optimization)
-- [差分进化算法 (DE)](#差分进化算法differential-evolution)
-- [免疫算法 (IA)](#免疫算法immune-algorithm)
-- [禁忌搜索算法 (TS)](#禁忌搜索算法tabu-search)
-- [NSGA-ii](#nsga-ii)
+- [快速开始](#快速开始)
+- [包结构](#包结构)
+- [算法](#算法)
+  - [模拟退火算法 (SA)](#模拟退火算法-simulated-annealing)
+  - [遗传算法 (GA)](#遗传算法genetic-algorithm)
+  - [遗传模拟退火算法 (GASA)](#遗传模拟退火算法-gasa)
+  - [粒子群优化算法 (PSO)](#粒子群优化算法particle-swarm-optimization)
+  - [免疫算法 (IA)](#免疫算法immune-algorithm)
+  - [差分进化算法 (DE)](#差分进化算法differential-evolution)
+  - [禁忌搜索算法 (TS)](#禁忌搜索算法tabu-search)
+  - [蚁群算法 (ACO)](#蚁群算法ant-colony-optimization)
+- [算子模块](#算子模块)
+- [问题模块](#问题模块)
+- [可视化](#可视化)
+- [改进方向](#改进方向)
+- [archive 目录](#archive-目录)
 
+---
 
-## 模拟退火算法, Simulated Annealing
+## 快速开始
 
-### 基本理论
-- 司守奎《数学建模算法与应用》，367-372
-- 包子阳《智能优化算法及其MATLAB实例》，135-154
-- 秦喜文《数学建模》，147-158
-- wiki百科：https://zh.wikipedia.org/wiki/%E6%A8%A1%E6%8B%9F%E9%80%80%E7%81%AB
+```bash
+# 安装依赖
+uv sync
 
-### 实例
-1. [`SA.py`](./SA.py): 基本模拟退火算法以及连续问题求解;tsp问题求解
+# 运行示例
+uv run python examples/demo_sa.py
+uv run python examples/demo_ga.py
+uv run python examples/demo_de.py
 
-### 改进
-1. 算法本身：选择更合理的领域确定方式、更高效的降温策略、更好的初始状态、更合适的终止准则
-2. 增加回火（重升温）环节
-3. 增加记忆（精英保留）环节，保存当前最好状态
-4. 将得到的最优解作为新的初始解，再次模拟退火
-5. 对当前状态进行多次搜索后再进入迭代，而不是标准模拟退火的单次比较，对于更优状态以概率$P_r$接受，而不是标准模拟退火的以概率1接受
-6. 结合其他搜索算法，如遗传算法、混沌搜索等
+# 运行测试
+uv run pytest tests/ -v
+```
 
+### 基本用法
 
-## 遗传算法，Genetic Algorithm
+所有算法遵循统一接口：创建问题 → 创建算法子类并覆写算子 → 调用 `run()` → 获取 `OptimizeResult`。
 
-### 基本理论
-- 司守奎《数学建模算法与应用》，373-382
-- 秦喜文《数学建模》，159-171
-- Eyal Wirsansky《Hands-On Genetic Algorithms with Python》，3-41
+```python
+from intopt.algorithms import DE
+from intopt.problems import ContinuousProblem
+from intopt.operators import initRandom, mutDERand1, cxBinomial
 
-### 从0实现的遗传算法
-1. [`GA.py`](./GA.py): 求解连续性问题;求解组合优化问题。已知100个目标的经纬度在`data/obj_longitude_latitude.txt`,我方基地经纬度(70, 40)。现在需要一架飞机从基地出发，侦察完所有目标，返回原基地。求该飞机飞行的最短距离;在GA1.py的基础上使用混沌序列替代传统随机方法。
+# 1. 定义问题
+problem = ContinuousProblem(func=lambda x: sum(x**2), bounds=[(-5, 5)] * 3)
 
-更多从0实现的遗传算法实例可参看Clinton Sheppard《Genetic Algorithms with Python》
+# 2. 覆写算子
+class MyDE(DE):
+    def init_population(self):
+        return initRandom(self.problem, self.pop_size)
+    def mutate(self, solution):
+        return mutDERand1(solution, self.population, self.fitness, self.F)
+    def crossover(self, target, donor):
+        return cxBinomial(target, donor, self.CR)
 
-### 基于DEAP框架的遗传算法
-1. [`GA_deap/GA1.py`](./GA_deap/GA1.py): 求解连续性问题
-2. [`GA_deap/GA2.py`](./GA_deap/GA2.py): 求解组合优化问题
-3. [`GA_deap/GA3.py`](./GA_deap/GA3.py): 基于**共享和小生境**的多极值函数优化
-4. [`GA_deap/GA4.py`](./GA_deap/GA4.py): 含有**限制条件**的函数优化
-5. [`GA_deap/GASA1.py`](./GA_deap/GASA1.py): 遗传模拟退火算法: 连续问题
-6. [`GA_deap/GASA2.py`](./GA_deap/GASA2.py): 遗传模拟退火算法: tsp问题
+# 3. 运行
+result = MyDE(problem, pop_size=50, maxiter=100).run()
+print(result.best_fitness)  # 最优适应度（越小越好）
+```
 
-更多基于DEAP框架的遗传算法实例可参看Eyal Wirsansky《Hands-On Genetic Algorithms with Python》
+## 包结构
 
-### 改进
-1. 算法本身：使用更合适的编码、更好的初始种群、更好的选择交叉变异算子、更合适的终止准则
-    - 编码：二进制编码、浮点数编码、排列编码、整数编码、树编码
-    - 初始种群：随机初始化、启发式初始化（利用已知理论进行初始化）、拉丁超立方采样、反对称初始化、小生境初始化、历史数据重启初始化（将之前优化的结果作为新的初始化个体）、混合初始化（综合几种初始化方法）
-    - 选择：DEAP预置：锦标赛、轮盘赌、随机、适应度最高/低k个个体、双重锦标赛、随机通用采样、词典选择、$\varepsilon$ -词典选择、自动适应度；自定义：基于变换适应度的轮盘赌（对每个个体进行排序，给不同的名次赋予一个新的值"适应度"进行轮盘赌；将适应度进行放缩等变换后再进行轮盘赌）
-    - 交叉：DEAP预置：单点交叉、两点交叉、均匀交叉、有界均匀交叉、混合交叉、模拟二进制交叉、有界模拟二进制交叉、混乱单点交叉、部分匹配交叉、均匀部分匹配交叉、有序交叉、进化策略混合交叉、进化策略两点交叉；自定义：k点交叉、反近亲交叉（仅保留交叉操作后新个体中适应度大的一个）、反相似交叉（类似生殖隔离，只有相似度低于阈值的两个个体才能进行交叉）、聚类交叉（将所有个体进行聚类，随机选择一个个体，确定其所属类，将其与同类最优个体交叉或者与其所属类最远的类中随机一个个体进行交叉）
-    - 变异：DEAP预置：位翻转变异、高斯变异、有界高斯变异、多项式有界变异、索引混洗变异、均匀整数变异、对数正态变异、插入变异、倒位变异、交换变异；
-    - 终止：当前个体满足或超出要求、达到设定时间、达到某些消耗或预算例如CPU时间和内存、最优个体在种群的占比超过某一阈值、连续多代最大适应度无变化
-2. 使用精英主义算法
-3. 使用小生境与共享
-4. 自适应参数，这里给出一种Srinvivas提出的自适应遗传算法方法：
+```
+intopt/
+  algorithms/         # 算法实现
+    base.py           # Optimizer 基类 + OptimizeResult
+    sa.py             # 模拟退火
+    ga.py             # 遗传算法
+    gasa.py           # 遗传模拟退火（继承 GA）
+    pso.py            # 粒子群优化
+    ia.py             # 免疫算法
+    de.py             # 差分进化
+    ts.py             # 禁忌搜索
+    aco.py            # 蚁群算法（TSP 默认，可覆写适配连续问题）
+    utils.py          # 共享工具（metropolis 等）
+  operators/          # 算子库（可组合复用）
+    mutate.py         # 变异算子
+    crossover.py      # 交叉算子
+    selection.py      # 选择算子
+    initialize.py     # 初始化算子
+    velocity.py       # 速度更新算子
+    utils.py          # 算子工具（混沌序列、适应度共享等）
+  problems/           # 问题定义
+    base.py           # Problem 基类
+    continuous.py     # 连续优化问题
+    tsp.py            # TSP 问题
+    knapsack.py       # 0-1 背包问题
+  visualize/          # 可视化
+    plots.py          # 收敛曲线、TSP 路径图
+  early_stopping.py   # 早停机制
+examples/             # 示例脚本
+archive/              # 重构前的旧脚本（独立运行，不从 intopt 导入）
+```
 
-$$
-P_c = 
-\begin{cases} 
-P_{c1} - \frac{(P_{c1} - P_{c2})(f' - f_{\text{avg}})}{f_{\text{max}} - f_{\text{avg}}}, & \text{if } f' \geq f_{\text{avg}} \\
-P_{c1}, & \text{if } f' < f_{\text{avg}}
-\end{cases} 
-$$
-$$
-P_m = 
-\begin{cases} 
-P_{m1} - \frac{(P_{m1} - P_{m2})(f_{\text{max}} - f)}{f_{\text{max}} - f_{\text{avg}}}, & \text{if } f \geq f_{\text{avg}} \\
-P_{m1}, & \text{if } f < f_{\text{avg}}
-\end{cases}
-$$
+## 算法
 
-其中，$f_{max}$为群体中最大的适应度；$f_{avg}$为每代群体的平均适应度值；$f$为要变异个体的适应度值；$f'$为待交叉个体中较大的适应度值；$P_{c1}=0.9,P_{c2}=0.6,P_{m1}=0.1,P_{m2}=0.001$。 
+所有算法均**求最小值**（适应度越低越好）。用户通过继承算法类并覆写关键方法来实现具体算子，`run()` 始终返回 `OptimizeResult`。
 
-5. k种群遗传算法：将一个种群分为k个子种群，各种群独立地进化若干代后，将两个种群（或所有种群）的最优个体进行交叉后与剩余个体合并，得到的新子种群再独立地进化若干代，重复前面的操作，直到只剩一个种群，该种群进化若干代直至得到满意结果
-6. 高层遗传算法：一种多层次结构的遗传算法，它将问题的解空间划分为不同层次，每个层次采用不同的编码方式和遗传操作策略。这种分层结构使得算法能够更有效地处理复杂问题。
-7. 混合遗传算法：将遗传算法与模拟退火等算法进行融合
+### 模拟退火算法, Simulated Annealing
 
-## 粒子群优化算法，Particle Swarm Optimization
+**覆写方法**: `mutate(solution)` — 变异操作。连续型用 `mutGaussian`，排列型用 `mutSwap`。
 
-### 基本理论
-- 包子阳《智能优化算法及其MATLAB实例》，109-134
-- 秦喜文《数学建模》，172-184
+```python
+from intopt.algorithms import SA
+from intopt.operators import mutGaussian
 
-### 实例
-1. [`PSO.py`](./PSO.py): minimize $f(x)=3x_1^2-2.1x_1^4+\frac{x_1^6}{3}+x_1x_2-3x_2^2+3x_2^4,\ |x_i|\leq 5$;**精英初始化PSO**、**多层PSO**;混沌粒子群优化算法;**离散粒子群优化**解决背包问题
-### 改进
-1. 精英初始化（可以是PSO得到的最优解也可以是其他算法得到的最优解）、多层PSO、采用更合适的惯性权重变化方案
-2. 混沌粒子群优化算法
-3. 与其他智能优化算法相结合
+class MySA(SA):
+    def mutate(self, solution):
+        return self.problem.clamp(mutGaussian(solution))
 
+result = MySA(problem, initial_temp=100, cooling_rate=0.99).run()
+```
 
-## 蚁群算法，Ant Colony Optimization
+**基本理论**: 司守奎《数学建模算法与应用》367-372; 包子阳《智能优化算法及其MATLAB实例》135-154; 秦喜文《数学建模》147-158; [wiki百科](https://zh.wikipedia.org/wiki/%E6%A8%A1%E6%8B%9F%E9%80%80%E7%81%AB)
 
-### 基本理论
-- 包子阳《智能优化算法及其MATLAB实例》，85-107
+### 遗传算法，Genetic Algorithm
 
-### 实例
-1. [`ACO.py`](./ACO.py): tsp问题;精英蚂蚁系统、最大最小蚂蚁系统、自适应蚁群算法;蚁群模拟退火算法
-2. [`ACO2.py`](./ACO2.py): 连续函数优化(仅供参考，实际效果欠佳)
+**覆写方法**: `init_population()`、`crossover(p1, p2)`、`select(pop, fit, k)`、`mutate(solution)`。
 
-### 改进
-1. 精英蚂蚁系统
-2. 最大最小蚂蚁系统
-3. 基于排序的蚁群算法
-4. 自适应蚁群算法
-5. 与其他优化算法相结合
+```python
+from intopt.algorithms import GA
+from intopt.operators import initRandom, cxArithmetic, selTournament, mutGaussian
 
+class MyGA(GA):
+    def init_population(self):
+        return initRandom(self.problem, self.pop_size)
+    def crossover(self, p1, p2):
+        return cxArithmetic(p1, p2)
+    def select(self, pop, fit, k):
+        return selTournament(pop, fit, k)
+    def mutate(self, solution):
+        return self.problem.clamp(mutGaussian(solution))
 
-## 差分进化算法，Differential Evolution
+result = MyGA(problem, pop_size=50, generations=100).run()
+```
 
-### 基本理论
-- 包子阳《智能优化算法及其MATLAB实例》，35-56
+**基本理论**: 司守奎《数学建模算法与应用》373-382; 秦喜文《数学建模》159-171; Eyal Wirsansky《Hands-On Genetic Algorithms with Python》3-41
 
-### 实例
-1. [`DE.py`](./DE.py): 基本差分进化算法、自适应差分进化算法、离散差分进化算法
+### 遗传模拟退火算法 (GASA)
 
-### 改进
-1. 将被变异变量由"random"改为"best"等、改变差向量的个数、使用其他交叉操作如指数交叉等
+继承 `GA`，变异步骤增加 Metropolis 接受准则。覆写方法与 GA 相同。
 
+```python
+from intopt.algorithms import GASA
+from intopt.operators import initRandom, cxArithmetic, selTournament, mutGaussian
 
-## 免疫算法，Immune Algorithm
+class MyGASA(GASA):
+    def init_population(self): return initRandom(self.problem, self.pop_size)
+    def crossover(self, p1, p2): return cxArithmetic(p1, p2)
+    def select(self, pop, fit, k): return selTournament(pop, fit, k)
+    def mutate(self, solution): return self.problem.clamp(mutGaussian(solution))
 
-### 基本理论
-- 包子阳《智能优化算法及其MATLAB实例》，57-83
+result = MyGASA(problem, pop_size=50, generations=200, T0=100).run()
+```
 
-### 实例
-1. [`IA.py`](./IA.py): 基础免疫算法;求解TSP问题
+### 粒子群优化算法，Particle Swarm Optimization
 
-### 改进
-1. 使用更好的浓度计算方式、激励度计算方式、变异算子等
+**覆写方法**: `init_population()`、`update_velocity()`。可选覆写: `update_position()`、`clamp_position()`、`clamp_velocity()`。
+
+```python
+from intopt.algorithms import PSO
+from intopt.operators import initRandom, velStd
+
+class MyPSO(PSO):
+    def init_population(self):
+        return initRandom(self.problem, self.pop_size)
+    def update_velocity(self):
+        return velStd(self.X, self.V, self.pbest, self.gbest, self.w, self.c1, self.c2)
+
+result = MyPSO(problem, pop_size=30, maxiter=100).run()
+```
+
+**基本理论**: 包子阳《智能优化算法及其MATLAB实例》109-134; 秦喜文《数学建模》172-184
+
+### 免疫算法，Immune Algorithm
+
+**覆写方法**: `init_population()`、`mutate(solution)`。可选覆写: `distance(a, b)`。可通过 `self.current_gen` 实现动态变异幅度。
+
+```python
+from intopt.algorithms import IA
+from intopt.operators import initRandom, mutGaussian
+
+class MyIA(IA):
+    def init_population(self):
+        return initRandom(self.problem, self.pop_size)
+    def mutate(self, solution):
+        sigma = 3.0 / (1 + self.current_gen * 0.01)
+        return self.problem.clamp(mutGaussian(solution, sigma=sigma))
+
+result = MyIA(problem, pop_size=100, maxiter=500).run()
+```
+
+**基本理论**: 包子阳《智能优化算法及其MATLAB实例》57-83
+
+### 差分进化算法，Differential Evolution
+
+**覆写方法**: `init_population()`、`mutate(solution)`（差分变异）、`crossover(target, donor)`（二项式交叉）。支持 6 种变异策略。
+
+```python
+from intopt.algorithms import DE
+from intopt.operators import initRandom, mutDERand1, cxBinomial
+
+class MyDE(DE):
+    def init_population(self):
+        return initRandom(self.problem, self.pop_size)
+    def mutate(self, solution):
+        return mutDERand1(solution, self.population, self.fitness, self.F)
+    def crossover(self, target, donor):
+        return cxBinomial(target, donor, self.CR)
+
+result = MyDE(problem, pop_size=50, maxiter=100).run()
+```
+
+**基本理论**: 包子阳《智能优化算法及其MATLAB实例》35-56
+
+### 禁忌搜索算法，Tabu Search
+
+**覆写方法**: `init_solution()`、`generate_candidates(solution)`、`update_tabu(move)`、`is_tabu(move)`。可选覆写 `aspiration()`。
+
+```python
+from intopt.algorithms import TS
+
+class MyTS(TS):
+    def init_solution(self):
+        return self.problem.random_solution()
+    def generate_candidates(self, solution):
+        # 返回 list[dict]，每项含 "solution" 和 "move"
+        ...
+    def update_tabu(self, move): ...
+    def is_tabu(self, move) -> bool: ...
+
+result = MyTS(problem, tabu_length=10, candidate_size=50, max_iter=500).run()
+```
+
+**基本理论**: 包子阳《智能优化算法及其MATLAB实例》155-175
+
+### 蚁群算法，Ant Colony Optimization
+
+**TSP 默认（零覆写，开箱即用）**：
+
+```python
+from intopt.algorithms import ACO
+from intopt.problems import TSPProblem
+
+aco = ACO(tsp_problem, m=50, max_iter=200, strategy="AS")
+result = aco.run()
+```
+
+**连续问题（覆写 4 个方法）**：
+
+覆写 `init_population()`、`initialize(population)`、`build_solutions(population)`、`update_pheromone(population, fitness)` 即可适配连续优化问题。详见 `examples/demo_aco_continuous.py`。
+
+支持 4 种信息素更新策略：`AS`（基本）、`EAS`（精英）、`MMAS`（最大最小）、`AAS`（自适应）。
+
+**基本理论**: 包子阳《智能优化算法及其MATLAB实例》85-107
+
+## 算子模块
+
+算子采用 DEAP 风格命名：`mut*`（变异）、`cx*`（交叉）、`sel*`（选择）、`init*`（初始化）、`vel*`（速度）。
+
+### 变异算子 (`intopt.operators.mutate`)
+
+| 算子 | 签名 | 用途 |
+|---|---|---|
+| `mutGaussian` | `(solution, mu, sigma, indpb)` | 高斯变异，连续型 |
+| `mutSwap` | `(solution)` | 交换变异，排列型 |
+| `mutFlip` | `(solution)` | 翻转变异，二值型 |
+| `mutChaosSwap` | `(solution)` | 混沌交换，排列型 |
+| `mutDERand1` | `(solution, population, fitness, F)` | DE/rand/1 |
+| `mutDEBest1` | `(solution, population, fitness, F)` | DE/best/1 |
+| `mutDERand2` | `(solution, population, fitness, F)` | DE/rand/2 |
+| `mutDEBest2` | `(solution, population, fitness, F)` | DE/best/2 |
+| `mutDECurrentToRand1` | `(solution, population, fitness, F)` | DE/current-to-rand/1 |
+| `mutDECurrentToBest1` | `(solution, population, fitness, F)` | DE/current-to-best/1 |
+
+### 交叉算子 (`intopt.operators.crossover`)
+
+| 算子 | 签名 | 用途 |
+|---|---|---|
+| `cxArithmetic` | `(p1, p2)` | 算术交叉，连续型 |
+| `cxSimulatedBinary` | `(p1, p2, eta, lower, upper)` | SBX，连续型 |
+| `cxOnePoint` | `(p1, p2)` | 单点交叉，通用向量 |
+| `cxTwoPoint` | `(p1, p2)` | 两点交叉，通用向量 |
+| `cxUniform` | `(p1, p2, indpb)` | 均匀交叉，离散/二值 |
+| `cxOrdered` | `(p1, p2)` | 顺序交叉，排列型 |
+| `cxPartialyMatched` | `(p1, p2)` | 部分匹配交叉，排列型 |
+| `cxBinomial` | `(target, donor, CR)` | 二项式交叉，DE 用 |
+| `cxChaosArithmetic` | `(p1, p2)` | 混沌算术交叉 |
+| `cxChaosOrdered` | `(p1, p2)` | 混沌顺序交叉 |
+
+### 选择算子 (`intopt.operators.selection`)
+
+| 算子 | 签名 |
+|---|---|
+| `selTournament` | `(population, fitness, k, tournsize)` |
+| `selRoulette` | `(population, fitness, k)` |
+| `selBest` | `(population, fitness, k)` |
+
+### 初始化算子 (`intopt.operators.initialize`)
+
+| 算子 | 签名 |
+|---|---|
+| `initRandom` | `(problem, pop_size)` |
+| `initChaosContinuous` | `(problem, pop_size)` |
+| `initChaosPermutation` | `(problem, pop_size)` |
+| `initCustom` | `(population)` |
+
+### 速度算子 (`intopt.operators.velocity`)
+
+| 算子 | 签名 |
+|---|---|
+| `velStd` | `(X, V, pbest, gbest, w, c1, c2)` |
+
+### 工具函数 (`intopt.operators.utils`)
+
+| 函数 | 用途 |
+|---|---|
+| `chaos_sequence(length)` | Logistic 混沌序列 |
+| `fitnessSharing(pop, fit, threshold, extent)` | 适应度共享（小生境） |
+
+## 问题模块
+
+| 类 | 描述 |
+|---|---|
+| `ContinuousProblem(func, bounds)` | 连续优化问题 |
+| `TSPProblem(coordinates)` | TSP 问题（自动计算距离矩阵） |
+| `KnapsackProblem(capacity, weights, values)` | 0-1 背包问题 |
+
+## 可视化
+
+`intopt.visualize` 提供 `plot_convergence()` 和 `plot_tsp_path()`，详见 `examples/demo_sa.py`。
+
+## 改进方向
+
+### 模拟退火
+1. 选择更合理的邻域确定方式、更高效的降温策略、更好的初始状态
+2. 增加回火（重升温）环节、记忆（精英保留）环节
+3. 结合其他搜索算法（遗传、混沌搜索等）
+
+### 遗传算法
+1. 更合适的编码、初始化、选择交叉变异算子、终止准则
+2. 精英主义算法、小生境与共享、自适应参数
+3. k 种群遗传算法、高层遗传算法、混合遗传算法
+
+### 差分进化
+1. 改变变异策略（rand → best 等）、差向量个数
+2. 使用指数交叉等替代交叉操作
+
+### 免疫算法
+1. 更好的浓度计算方式、激励度计算方式、变异算子
 2. 与其他算法结合
 
+### 禁忌搜索
+1. 区域禁忌 (Region Tabu) 替代单点禁忌
+2. 动态调整禁忌区域大小
 
-## 禁忌搜索算法，Tabu Search
+### 蚁群算法
+1. 精英蚂蚁系统、最大最小蚂蚁系统、基于排序的蚁群算法
+2. 自适应蚁群算法、与其他算法融合
 
-### 基本理论
-- 包子阳《智能优化算法及其MATLAB实例》，155-175
+## archive 目录
 
-### 实例
-1. [`TS.py`](./TS.py)
-
-### 改进
-1. 使用区域禁忌 (Region Tabu) 而非单点禁忌处理连续问题
-2. 根据搜索进度动态调整禁忌区域大小
-3. 与其他算法相结合
-
-
-## NSGA-ii
-
-### 基本理论
-- https://blog.csdn.net/weixin_45526117/article/details/128507020
-
-### 实例
-1. [`NSGA2.md`](./NSGA2.md)
+`archive/` 存放重构前的原始脚本，使用独立 API（传递 `func`/`bounds`，内嵌绘图）。
+这些脚本**独立运行**，不依赖 `intopt` 包，保留以作参考。
