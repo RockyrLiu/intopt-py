@@ -269,3 +269,42 @@ def cxChaosOrdered(parent1: np.ndarray, parent2: np.ndarray):
     _fill_ox(c1, p2, cx1, cx2, size)
     _fill_ox(c2, p1, cx1, cx2, size)
     return c1, c2
+
+
+# ---------------------------------------------------------------------------
+# DE 二项式交叉
+# ---------------------------------------------------------------------------
+
+
+def cxBinomial(
+    target: np.ndarray,
+    donor: np.ndarray,
+    CR: float = 0.7,
+) -> np.ndarray:
+    """二项式交叉（DE 用）。
+
+    对目标向量和供体向量执行二项式交叉：
+    随机选一个维度 j_rand 强制来自供体，
+    其余维度以概率 ``CR`` 取供体，否则保留目标值。
+
+    Parameters
+    ----------
+    target : np.ndarray
+        目标向量。
+    donor : np.ndarray
+        供体向量。
+    CR : float
+        交叉概率，默认 0.7。
+
+    Returns
+    -------
+    np.ndarray
+        试验向量。
+    """
+    dim = len(target)
+    j_rand = np.random.randint(0, dim)
+    trial = target.copy()
+    for j in range(dim):
+        if np.random.rand() < CR or j == j_rand:
+            trial[j] = donor[j]
+    return trial

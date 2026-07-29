@@ -1,5 +1,6 @@
 from intopt.operators.crossover import (
     cxArithmetic,
+    cxBinomial,
     cxChaosArithmetic,
     cxChaosOrdered,
     cxOnePoint,
@@ -15,12 +16,24 @@ from intopt.operators.initialize import (
     initCustom,
     initRandom,
 )
-from intopt.operators.mutate import mutChaosSwap, mutFlip, mutGaussian, mutSwap
+from intopt.operators.mutate import (
+    mutChaosSwap,
+    mutDEBest1,
+    mutDEBest2,
+    mutDECurrentToBest1,
+    mutDECurrentToRand1,
+    mutDERand1,
+    mutDERand2,
+    mutFlip,
+    mutGaussian,
+    mutSwap,
+)
 from intopt.operators.selection import selBest, selRoulette, selTournament
 from intopt.operators.velocity import velStd
 
 __all__ = [
     "cxArithmetic",
+    "cxBinomial",
     "cxChaosArithmetic",
     "cxChaosOrdered",
     "cxOnePoint",
@@ -34,6 +47,12 @@ __all__ = [
     "initCustom",
     "initRandom",
     "mutChaosSwap",
+    "mutDEBest1",
+    "mutDEBest2",
+    "mutDECurrentToBest1",
+    "mutDECurrentToRand1",
+    "mutDERand1",
+    "mutDERand2",
     "mutFlip",
     "mutGaussian",
     "mutSwap",

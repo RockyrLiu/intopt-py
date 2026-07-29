@@ -93,3 +93,247 @@ def mutChaosSwap(solution: np.ndarray) -> np.ndarray:
     new_sol = solution.copy()
     new_sol[i], new_sol[j] = solution[j], solution[i]
     return new_sol
+
+
+# ---------------------------------------------------------------------------
+# DE 差分变异算子（单个个体）
+# ---------------------------------------------------------------------------
+
+
+def mutDERand1(
+    solution: np.ndarray,
+    population: np.ndarray,
+    fitness: np.ndarray,
+    F: float = 0.5,
+) -> np.ndarray:
+    """DE/rand/1 差分变异。
+
+    从种群中随机选 3 个互异个体，
+    生成供体向量: v = x_r1 + F * (x_r2 - x_r3)。
+
+    Parameters
+    ----------
+    solution : np.ndarray
+        目标向量（用于排除自身）。
+    population : np.ndarray
+        种群，shape ``(pop_size, dim)``。
+    fitness : np.ndarray
+        适应度数组（未使用，保留以统一接口）。
+    F : float
+        缩放因子，默认 0.5。
+
+    Returns
+    -------
+    np.ndarray
+        供体向量。
+    """
+    popsize = len(population)
+    for idx in range(popsize):
+        if np.array_equal(population[idx], solution):
+            break
+    candidates = [i for i in range(popsize) if i != idx]
+    r1, r2, r3 = np.random.choice(candidates, 3, replace=False)
+    return population[r1] + F * (population[r2] - population[r3])
+
+
+def mutDEBest1(
+    solution: np.ndarray,
+    population: np.ndarray,
+    fitness: np.ndarray,
+    F: float = 0.5,
+) -> np.ndarray:
+    """DE/best/1 差分变异。
+
+    供体向量: v = x_best + F * (x_r1 - x_r2)，
+    其中 x_best 为当前种群最优个体。
+
+    Parameters
+    ----------
+    solution : np.ndarray
+        目标向量（用于排除自身）。
+    population : np.ndarray
+        种群，shape ``(pop_size, dim)``。
+    fitness : np.ndarray
+        适应度数组，用于确定最优个体。
+    F : float
+        缩放因子，默认 0.5。
+
+    Returns
+    -------
+    np.ndarray
+        供体向量。
+    """
+    popsize = len(population)
+    for idx in range(popsize):
+        if np.array_equal(population[idx], solution):
+            break
+    best_idx = np.argmin(fitness)
+    current_best = population[best_idx]
+    candidates = [i for i in range(popsize) if i != idx]
+    r1, r2 = np.random.choice(candidates, 2, replace=False)
+    return current_best + F * (population[r1] - population[r2])
+
+
+def mutDERand2(
+    solution: np.ndarray,
+    population: np.ndarray,
+    fitness: np.ndarray,
+    F: float = 0.5,
+) -> np.ndarray:
+    """DE/rand/2 差分变异。
+
+    供体向量:
+    v = x_r1 + F*(x_r2 - x_r3) + F*(x_r4 - x_r5)。
+
+    Parameters
+    ----------
+    solution : np.ndarray
+        目标向量（用于排除自身）。
+    population : np.ndarray
+        种群，shape ``(pop_size, dim)``。
+    fitness : np.ndarray
+        适应度数组（未使用）。
+    F : float
+        缩放因子，默认 0.5。
+
+    Returns
+    -------
+    np.ndarray
+        供体向量。
+    """
+    popsize = len(population)
+    for idx in range(popsize):
+        if np.array_equal(population[idx], solution):
+            break
+    candidates = [i for i in range(popsize) if i != idx]
+    r1, r2, r3, r4, r5 = np.random.choice(candidates, 5, replace=False)
+    return (
+        population[r1]
+        + F * (population[r2] - population[r3])
+        + F * (population[r4] - population[r5])
+    )
+
+
+def mutDEBest2(
+    solution: np.ndarray,
+    population: np.ndarray,
+    fitness: np.ndarray,
+    F: float = 0.5,
+) -> np.ndarray:
+    """DE/best/2 差分变异。
+
+    供体向量:
+    v = x_best + F*(x_r1 - x_r2) + F*(x_r3 - x_r4)。
+
+    Parameters
+    ----------
+    solution : np.ndarray
+        目标向量（用于排除自身）。
+    population : np.ndarray
+        种群，shape ``(pop_size, dim)``。
+    fitness : np.ndarray
+        适应度数组，用于确定最优个体。
+    F : float
+        缩放因子，默认 0.5。
+
+    Returns
+    -------
+    np.ndarray
+        供体向量。
+    """
+    popsize = len(population)
+    for idx in range(popsize):
+        if np.array_equal(population[idx], solution):
+            break
+    best_idx = np.argmin(fitness)
+    current_best = population[best_idx]
+    candidates = [i for i in range(popsize) if i != idx]
+    r1, r2, r3, r4 = np.random.choice(candidates, 4, replace=False)
+    return (
+        current_best
+        + F * (population[r1] - population[r2])
+        + F * (population[r3] - population[r4])
+    )
+
+
+def mutDECurrentToRand1(
+    solution: np.ndarray,
+    population: np.ndarray,
+    fitness: np.ndarray,
+    F: float = 0.5,
+) -> np.ndarray:
+    """DE/current-to-rand/1 差分变异。
+
+    供体向量:
+    v = x_i + K*(x_r1 - x_i) + F*(x_r2 - x_r3)，其中 K=0.5。
+
+    Parameters
+    ----------
+    solution : np.ndarray
+        目标向量。
+    population : np.ndarray
+        种群，shape ``(pop_size, dim)``。
+    fitness : np.ndarray
+        适应度数组（未使用）。
+    F : float
+        缩放因子，默认 0.5。
+
+    Returns
+    -------
+    np.ndarray
+        供体向量。
+    """
+    popsize = len(population)
+    K = 0.5
+    for idx in range(popsize):
+        if np.array_equal(population[idx], solution):
+            break
+    candidates = [i for i in range(popsize) if i != idx]
+    r1, r2, r3 = np.random.choice(candidates, 3, replace=False)
+    return (
+        solution
+        + K * (population[r1] - solution)
+        + F * (population[r2] - population[r3])
+    )
+
+
+def mutDECurrentToBest1(
+    solution: np.ndarray,
+    population: np.ndarray,
+    fitness: np.ndarray,
+    F: float = 0.5,
+) -> np.ndarray:
+    """DE/current-to-best/1 差分变异。
+
+    供体向量:
+    v = x_i + F*(x_best - x_i) + F*(x_r1 - x_r2)。
+
+    Parameters
+    ----------
+    solution : np.ndarray
+        目标向量。
+    population : np.ndarray
+        种群，shape ``(pop_size, dim)``。
+    fitness : np.ndarray
+        适应度数组，用于确定最优个体。
+    F : float
+        缩放因子，默认 0.5。
+
+    Returns
+    -------
+    np.ndarray
+        供体向量。
+    """
+    popsize = len(population)
+    for idx in range(popsize):
+        if np.array_equal(population[idx], solution):
+            break
+    best_idx = np.argmin(fitness)
+    current_best = population[best_idx]
+    candidates = [i for i in range(popsize) if i != idx]
+    r1, r2 = np.random.choice(candidates, 2, replace=False)
+    return (
+        solution
+        + F * (current_best - solution)
+        + F * (population[r1] - population[r2])
+    )
